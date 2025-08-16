@@ -857,7 +857,7 @@ def page_feedback_script():
 
     c1,c2 = st.columns(2)
     with c1:
-        if st.button("🔎 기준에 따른 상세 피드백", key="btn_fb"):
+        if st.button("🔎 상세 피드백 받기", key="btn_fb"):
             with st.spinner("🔍 피드백을 생성하고 있습니다..."):
                 criteria = ("아래 7가지 기준으로, 예시는 간단히, 수정 제안은 구체적으로:\n"
                             "1) 주제 일관성  2) 기승전결 자연스러움  3) 인물 말투/성격 적합성\n"
@@ -872,14 +872,14 @@ def page_feedback_script():
                 
                 # 오른쪽으로 이동 안내
                 if not st.session_state.get("script_final"):
-                    st.info("💡 만약 대본의 양을 늘리고 싶다면 오른쪽의 '✨ 피드백 반영 + 기승전결 확장 완성본 생성' 버튼을 눌러보세요!")
+                    st.info("💡 오른쪽의 '✨ 피드백 반영하여 대본 생성하기' 버튼을 눌러보세요!")
                     
                 # 왼쪽 메뉴 다음 단계 안내
-                st.session_state["next_step_hint"] = "피드백 완성! 다음 단계로 이동하세요."
+                st.session_state["next_step_hint"] = "피드백에 맞추어 대본이 완성되면 다음 단계로 이동하세요."
                 
     with c2:
-        if st.button("✨ 피드백 반영 + 기승전결 확장 완성본 생성", key="btn_make_final"):
-            with st.spinner("✨ 완성본을 생성하고 있습니다..."):
+        if st.button("✨ 피드백 반영하여 대본 생성하기", key="btn_make_final"):
+            with st.spinner("✨ 대본을 생성하고 있습니다..."):
                 prm = (
                     "초등학생 눈높이에 맞춰 대본을 다듬고, 필요하면 내용을 자연스럽게 보강하여 "
                     "기-승-전-결이 또렷한 **연극 완성본**을 작성하세요.\n\n"
@@ -898,29 +898,59 @@ def page_feedback_script():
                     temperature=0.6, max_tokens=2600
                 ).choices[0].message.content
                 st.session_state["script_final"] = res
-                st.success("🎉 완성본 생성 완료!")
+                st.success("🎉 대본 생성 완료!")
                 
                 # 왼쪽 메뉴 다음 단계 안내
-                st.session_state["next_step_hint"] = "완성본 생성 완료! 다음 단계로 이동하세요."
+                st.session_state["next_step_hint"] = "대본 생성 완료! 피드백을 반영하여 수정을 완료한 후 다음 단계로 이동하세요."
 
     st.divider()
     if st.session_state.get("script_feedback"):
         with st.expander("📄 상세 피드백", expanded=False):
             st.markdown(st.session_state["script_feedback"])
     if st.session_state.get("script_final"):
-        st.subheader("완성본 미리보기"); st.code(st.session_state["script_final"], language="text")
+        st.subheader("🤖 AI 추천 대본 (수정 가능)")
+        st.markdown("AI가 추천한 대본입니다. 상세 피드백을 참고하여 수정해보아요!")
+        
+        # 수정 가능한 텍스트박스
+        edited_script = st.text_area(
+            "대본 수정",
+            value=st.session_state["script_final"],
+            height=300,
+            key="script_editor"
+        )
+        
+        # 수정 완료 버튼
+        if st.button("✅ 수정 완료", key="btn_save_script"):
+            st.session_state["script"] = edited_script
+            st.success("✅ 대본이 저장되었습니다!")
 
 # ───────── 페이지 3: 역할 밸런서 ───────────────────────────────────
 def page_role_balancer():
     st.header("⚖️ 3) 역할 밸런서(대사 수 조절)")
-    script = st.session_state.get("script_final") or st.session_state.get("script_raw","")
+    # 스크립트 우선순위: 현재 스크립트 > 재분배된 것 > 최종 스크립트 > 원본 스크립트
+    script = st.session_state.get("current_script") or st.session_state.get("script_balanced") or st.session_state.get("script_final") or st.session_state.get("script_raw","")
     if not script: st.warning("먼저 대본을 입력/생성하세요."); return
     seq = build_sequence(script); roles = extract_roles(script)
     if not roles: st.info("‘이름: 내용’ 형식이어야 역할을 인식해요."); return
 
-    counts = {r:0 for r in roles}
-    for ln in seq: counts[ln["who"]]+=1
-    st.subheader("현재 대사 수"); st.write(counts)
+    # 현재 대사 수 계산 (재분배된 스크립트가 있으면 그것을 우선 사용)
+    if st.session_state.get("script_balanced"):
+        # 재분배된 스크립트로 계산
+        balanced_seq = build_sequence(st.session_state["script_balanced"])
+        counts = {r:0 for r in roles}
+        for ln in balanced_seq: counts[ln["who"]]+=1
+        st.subheader("현재 대사 수 (재분배 후)")
+        # counts를 session_state에 저장하여 다음 재분배 시 사용
+        st.session_state["current_counts"] = counts
+    else:
+        # 원본 스크립트로 계산
+        counts = {r:0 for r in roles}
+        for ln in seq: counts[ln["who"]]+=1
+        st.subheader("현재 대사 수")
+        # counts를 session_state에 저장
+        st.session_state["current_counts"] = counts
+    
+    st.write(counts)
     st.markdown("생성된 대본의 줄 수를 알려줘요.")
 
     st.subheader("목표 대사 수 설정")
@@ -929,25 +959,36 @@ def page_role_balancer():
     cols = st.columns(min(4, max(1,len(roles))))
     for i,r in enumerate(roles):
         with cols[i % len(cols)]:
+            # 재분배 후에는 업데이트된 counts를 기본값으로 사용
             targets[r]=st.number_input(f"{r} 목표", min_value=0, value=counts[r], step=1, key=f"tgt_{r}")
 
-    if st.button("🔁 재분배하기", key="btn_rebalance"):
+    if st.button("🔁 재분배하기 (더블 클릭)", key="btn_rebalance"):
         with st.spinner("⚖️ 역할을 재분배하고 있습니다..."):
             new_seq=[]
-            need = {r:max(0, targets[r]-counts[r]) for r in roles}
-            excess = {r:max(0, counts[r]-targets[r]) for r in roles}
-            skip_step = {r:(counts[r]//excess[r] if excess[r]>0 else None) for r in roles}
+            # 현재 counts를 사용 (재분배된 스크립트가 있으면 그것을 사용)
+            current_counts = st.session_state.get("current_counts", counts)
+            need = {r:max(0, targets[r]-current_counts[r]) for r in roles}
+            excess = {r:max(0, current_counts[r]-targets[r]) for r in roles}
+            skip_step = {r:(current_counts[r]//excess[r] if excess[r]>0 else None) for r in roles}
             seen = {r:0 for r in roles}
-            for ln in seq:
+            
+            # 재분배할 스크립트 선택 (재분배된 것이 있으면 그것을 사용)
+            script_to_rebalance = st.session_state.get("script_balanced") or script
+            seq_to_rebalance = build_sequence(script_to_rebalance)
+            
+            for ln in seq_to_rebalance:
                 r = ln["who"]; seen[r]+=1
-                if excess[r]>0 and skip_step[r] and (seen[r] % max(1,skip_step[r])==0) and counts[r]>targets[r]:
-                    counts[r]-=1; continue
+                if excess[r]>0 and skip_step[r] and (seen[r] % max(1,skip_step[r])==0) and current_counts[r]>targets[r]:
+                    current_counts[r]-=1; continue
                 new_seq.append(ln)
             for r in roles:
                 while need[r]>0:
                     new_seq.append({"who":r, "text":"(무대 중앙을 보며) 네, 알겠어!"}); need[r]-=1
             st.session_state["script_balanced"]="\n".join([f"{x['who']}: {x['text']}" for x in new_seq])
             st.success("✅ 재분배 완료!")
+            
+            # 재분배된 스크립트를 현재 script로 설정하여 즉시 반영
+            st.session_state["current_script"] = st.session_state["script_balanced"]
             
             # 왼쪽 메뉴 다음 단계 안내
             st.session_state["next_step_hint"] = "역할 재분배 완료! 다음 단계로 이동하세요."
@@ -1074,7 +1115,11 @@ def page_rehearsal_partner():
             st.info("내 차례예요. 아래 **마이크 버튼을 한 번만** 눌러 말하고, 버튼이 다시 바뀌면 자동 분석이 시작됩니다.")
             audio_bytes = None
             if audio_recorder is not None:
-                st.markdown("<span class='rec-dot'></span> 녹음 준비", unsafe_allow_html=True)
+                # 녹음 상태에 따른 텍스트 변경
+                #recording_status = "🎙️ 녹음중" if st.session_state.get(f"recording_{cur_idx}", False) else "🎤 녹음 준비"
+                #st.markdown(f"**{recording_status}**")
+                st.markdown("💡 **마이크 아이콘을 클릭하여 녹음 시작/중지**")
+                
                 audio_bytes = audio_recorder(
                     text="🎤 말하고 인식(자동 분석)", sample_rate=16000,
                     pause_threshold=2.0, key=f"audrec_one_{cur_idx}"
@@ -1224,7 +1269,7 @@ def main():
         "🎙️ 5) 리허설 파트너": page_rehearsal_partner
     }
 
-    sidebar_status()
+    #sidebar_status()
     sel = st.sidebar.radio("메뉴", list(pages.keys()), index=list(pages).index(st.session_state["current_page"]), key="nav_radio")
     st.session_state["current_page"]=sel
 
