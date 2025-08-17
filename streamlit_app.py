@@ -562,7 +562,7 @@ def build_cuecards_pdf(script: str, role: str) -> Optional[bytes]:
 
 # ───────── 세션 피드백 프롬프트 ─────────────────────────────────────
 def prompt_session_feedback(turns: List[Dict]) -> str:
-    return ("연극 대사 연습 기록입니다. 띄어쓰기, 말속도, 어조, 목소리 크기를 중심으로 "
+    return ("연극 대사 연습 기록입니다. 말속도, 어조, 목소리 크기를 중심으로 "
             "칭찬/개선점/다음 연습 팁을 간결히 써주세요.\n\n"+json.dumps(turns, ensure_ascii=False, indent=2))
 
 # ───────── 프로소디 분석: WAV 폴백 포함 ────────────────────────────
@@ -1040,21 +1040,7 @@ def page_rehearsal_partner():
 
     # 파트너 TTS 보이스
     st.markdown("**🎭 상대역 음성 선택**")
-    st.markdown("초등학생 연극에 적합한 목소리를 선택해보세요!")
-    
-    # 초등학생 추천 목소리 안내
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        st.info("💡 **10대 역할 추천:**\n"
-                "• **지호(남)**: 활기차고 밝은 목소리\n"
-                "• **소연(여)**: 귀엽고 명랑한 목소리\n"
-                "• **민지(여)**: 밝고 경쾌한 목소리")
-    with col2:
-        st.info("💡 **어른 역할 추천:**\n"
-                "• **민준(남)**: 따뜻하고 친근한 목소리\n"
-                "• **현우(남)**: 차분하고 신뢰감 있는 목소리\n"
-                "• **지민(여)**: 부드럽고 친절한 목소리\n"
-                "• **하은(여)**: 차분하고 우아한 목소리")
+    st.markdown("연극에 적합한 목소리를 선택해보세요!")
     
     voice_label = st.selectbox(
         "상대역 음성 선택", 
@@ -1081,25 +1067,33 @@ def page_rehearsal_partner():
         st.info(voice_descriptions.get(voice_label, "멋진 목소리네요!"))
 
     # 이동 컨트롤
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        if st.button("⏮️ 처음부터 다시", key="restart_all"):
-            st.session_state["duet_cursor"]=0
-            st.session_state["duet_turns"]=[]; st.session_state["auto_done_token"]=None
-            if hasattr(st, "rerun"): st.rerun()
-    with c2:
-        if st.button("⬅️ 이전 줄로 이동", key="prev_line"):
-            st.session_state["duet_cursor"]=max(0, st.session_state["duet_cursor"]-1)
-            st.session_state["auto_done_token"]=None
-            if hasattr(st, "rerun"): st.rerun()
-    with c3:
-        if st.button("➡️ 다음 줄 이동", key="next_line"):
-            st.session_state["duet_cursor"]=min(len(seq), st.session_state["duet_cursor"]+1)
-            st.session_state["auto_done_token"]=None
-            if hasattr(st, "rerun"): st.rerun()
+    # c1, c2, c3 = st.columns(3)
+    # with c1:
+    #     if st.button("⏮️ 처음부터 다시", key="restart_all"):
+    #         st.session_state["duet_cursor"]=0
+    #         st.session_state["duet_turns"]=[]; st.session_state["auto_done_token"]=None
+    #         if hasattr(st, "rerun"): st.rerun()
+    # with c2:
+    #     if st.button("⬅️ 이전 줄로 이동", key="prev_line"):
+    #         st.session_state["duet_cursor"]=max(0, st.session_state["duet_cursor"]-1)
+    #         st.session_state["auto_done_token"]=None
+    #         if hasattr(st, "rerun"): st.rerun()
+    # with c3:
+    #     if st.button("➡️ 다음 줄 이동", key="next_line"):
+    #         st.session_state["duet_cursor"]=min(len(seq), st.session_state["duet_cursor"]+1)
+    #         st.session_state["auto_done_token"]=None
+    #         if hasattr(st, "rerun"): st.rerun()
 
     # 내 역할
     my_role = st.selectbox("내 역할(실시간)", roles, key="role_live")
+    
+    # 역할이 변경되면 자동으로 페이지 새로고침
+    if "previous_role" not in st.session_state:
+        st.session_state["previous_role"] = my_role
+    elif st.session_state["previous_role"] != my_role:
+        st.session_state["previous_role"] = my_role
+        st.success(f"✅ 역할이 '{my_role}'로 변경되었습니다!")
+        st.rerun()
 
     # 현재 줄
     cur_idx = st.session_state.get("duet_cursor", 0)
