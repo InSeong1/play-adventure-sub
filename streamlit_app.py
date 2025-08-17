@@ -825,10 +825,6 @@ def render_prosody_card(pros: dict):
         st.markdown("<div class='card'><h4>🎭 어조(피치)</h4>"+_badge(to)+
                     f"<div class='kv'><div class='k'>F0(Hz)</div><div class='v'>{(int(pros.get('f0_hz')) if pros.get('f0_hz') else '—')}</div></div>"+
                     "</div>", unsafe_allow_html=True)
-    with c4:
-        st.markdown("<div class='card'><h4>⏸️ 띄어 읽기</h4>"+_badge(spc)+
-                    f"<div class='kv'><div class='k'>쉼 비율</div><div class='v'>{(pros.get('pause_ratio') or 0)*100:.0f}%</div></div>"+
-                    _gauge_html(_score_spacing(pr))+"</div>", unsafe_allow_html=True)
 
 # ───────── 페이지 1: 대본 업로드/입력 ──────────────────────────────
 def page_script_input():
@@ -1056,10 +1052,10 @@ def page_rehearsal_partner():
         voice_descriptions = {
             "민준 (남성, 따뜻하고 친근한 목소리)": "🎭 **따뜻하고 친근한 목소리** - 선생님이나 부모님 역할에 적합해요!",
             "현우 (남성, 차분하고 신뢰감 있는 목소리)": "🎭 **차분하고 신뢰감 있는 목소리** - 의사나 경찰관 같은 전문직 역할에 좋아요!",
-            "지호 (남성, 활기차고 밝은 목소리)": "🎭 **활기차고 밝은 목소리** - 친구나 동생 역할에 완벽해요!",
+            "지호 (남성, 활기차고 밝은 목소리)": "🎭 **활기차고 밝은 목소리** - 친구나 동생 역할에 어울려요!",
             "지민 (여성, 부드럽고 친절한 목소리)": "🎭 **부드럽고 친절한 목소리** - 친절한 선생님이나 언니 역할에 어울려요!",
             "소연 (여성, 귀엽고 명랑한 목소리)": "🎭 **귀엽고 명랑한 목소리** - 귀여운 친구나 동생 역할에 최고예요!",
-            "하은 (여성, 차분하고 우아한 목소리)": "🎭 **차분하고 우아한 목소리** - 우아한 공주나 여왕 역할에 완벽해요!",
+            "하은 (여성, 차분하고 우아한 목소리)": "🎭 **차분하고 우아한 목소리** - 우아한 공주나 여왕 역할에 어울려요!",
             "민지 (여성, 밝고 경쾌한 목소리)": "🎭 **밝고 경쾌한 목소리** - 활발한 친구나 운동선수 역할에 어울려요!"
         }
         
