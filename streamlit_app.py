@@ -613,17 +613,17 @@ def _analyze_wav_pure(audio_bytes: bytes, stt_text: str) -> dict:
         wps = (len((stt_text or "").split())/voiced) if stt_text else None
         def lab_speed(s):
             if s is None: return "데이터 부족"
-            if s>=5.0: return "너무 빠름"
-            if s>=4.0: return "빠름"
-            if s>=2.0: return "적당함"
-            if s>=1.2: return "느림"
+            if s>=7.3: return "너무 빠름"
+            if s>=6.6: return "빠름"
+            if s>=5.2: return "적당함"
+            if s>=3.8: return "느림"
             return "너무 느림"
         def lab_volume(db):
             if db is None: return "데이터 부족"
-            if db>=-9: return "너무 큼"
-            if db>=-15: return "큼"
-            if db>=-25: return "적당함"
-            if db>=-35: return "작음"
+            if db>=-13: return "너무 큼"
+            if db>=-23: return "큼"
+            if db>=-37: return "적당함"
+            if db>=-47: return "작음"
             return "너무 작음"
         spacing = ("잘 띄어 읽음" if 0.08<=pause_ratio<=0.28 else
                    "보통" if 0.04<=pause_ratio<0.08 or 0.28<pause_ratio<=0.40 else
@@ -684,16 +684,16 @@ def analyze_prosody(audio_bytes: bytes, stt_text: str) -> dict:
             words = len((stt_text or "").split()); wps = words/voiced_total if voiced_total>0 else None
             if syl_rate is None: speed = "데이터 부족"
             else:
-                speed = ("너무 빠름" if syl_rate>=5.0 else
-                         "빠름"      if syl_rate>=4.0 else
-                         "적당함"    if syl_rate>=2.0 else
-                         "느림"      if syl_rate>=1.2 else "너무 느림")
+                speed = ("너무 빠름" if syl_rate>=7.3 else
+                         "빠름"      if syl_rate>=6.6 else
+                         "적당함"    if syl_rate>=5.2 else
+                         "느림"      if syl_rate>=3.8 else "너무 느림")
             rms = float((_np.sqrt(_np.mean(y*y))) + 1e-12)
             rms_db = 20.0 * math.log10(rms)
-            volume = ("너무 큼" if rms_db>=-9 else
-                      "큼"     if rms_db>=-15 else
-                      "적당함" if rms_db>=-25 else
-                      "작음"   if rms_db>=-35 else "너무 작음")
+            volume = ("너무 큼" if rms_db>=-13 else
+                      "큼"     if rms_db>=-23 else
+                      "적당함" if rms_db>=-37 else
+                      "작음"   if rms_db>=-47 else "너무 작음")
             try:
                 f0, _, _ = _lb.pyin(y, fmin=75, fmax=500, sr=sr, frame_length=2048, hop_length=256)
                 if f0 is not None:
@@ -729,10 +729,10 @@ def analyze_prosody(audio_bytes: bytes, stt_text: str) -> dict:
             seg = AudioSegment.from_file(io.BytesIO(audio_bytes))
             dur = max(0.001, seg.duration_seconds)
             rms_dbfs = seg.dBFS if seg.dBFS != float("-inf") else -60.0
-            volume = ("너무 큼" if rms_dbfs>-9 else
-                      "큼"     if rms_dbfs>-15 else
-                      "적당함" if rms_dbfs>-25 else
-                      "작음"   if rms_dbfs>-35 else "너무 작음")
+            volume = ("너무 큼" if rms_dbfs>-13 else
+                      "큼"     if rms_dbfs>-23 else
+                      "적당함" if rms_dbfs>-37 else
+                      "작음"   if rms_dbfs>-47 else "너무 작음")
             if _silence:
                 non = _silence.detect_nonsilent(seg, min_silence_len=120,
                                                 silence_thresh=max(-60, int(seg.dBFS)-10))
@@ -748,10 +748,10 @@ def analyze_prosody(audio_bytes: bytes, stt_text: str) -> dict:
             syl_rate = (syllables/voiced_total) if (voiced_total>0 and syllables>0) else None
             if syl_rate is None: speed = "데이터 부족"
             else:
-                speed = ("너무 빠름" if syl_rate>=5.0 else
-                         "빠름"      if syl_rate>=4.0 else
-                         "적당함"    if syl_rate>=2.0 else
-                         "느림"      if syl_rate>=1.2 else "너무 느림")
+                speed = ("너무 빠름" if syl_rate>=7.3 else
+                         "빠름"      if syl_rate>=6.6 else
+                         "적당함"    if syl_rate>=5.2 else
+                         "느림"      if syl_rate>=3.8 else "너무 느림")
             wps = (len((stt_text or '').split())/voiced_total) if (voiced_total>0 and stt_text) else None
             step=50; vals=[]
             for i in range(0, len(seg), step):
@@ -786,13 +786,13 @@ def _gauge_html(pct: float) -> str:
 
 def _score_speed(sps: Optional[float]) -> int:
     if sps is None or sps<=0: return 0
-    center=3.0; spread=2.0
+    center=3.3; spread=2.2
     dist=abs(sps-center)/spread
     return max(0,int(100*(1-dist)))
 
 def _score_volume(rms_db: Optional[float]) -> int:
     if rms_db is None: return 0
-    center=-20.0; spread=10.0
+    center=-24.0; spread=12.0
     dist=abs(rms_db-center)/spread
     return max(0,int(100*(1-dist)))
 
@@ -921,6 +921,55 @@ def page_feedback_script():
             st.success("✅ 대본이 저장되었습니다!")
 
 # ───────── 페이지 3: 역할 밸런서 ───────────────────────────────────
+# ==== 역할 대사 생성 헬퍼 ==========================================
+def _strip_role_prefix(text: str, role: str) -> str:
+    if not text: return ""
+    m = re.match(rf"^\s*{re.escape(role)}\s*[:：]\s*(.+)$", text.strip())
+    return (m.group(1).strip() if m else text.strip())
+
+def _gen_contextual_line(role: str, seq: List[Dict], anchor_idx: int) -> str:
+    """
+    새로 끼워 넣을 위치(anchor_idx) 주변 문맥을 보고, role에 맞는 한 줄 대사를 생성.
+    실패하면 짧은 기본 문장으로 폴백.
+    """
+    try:
+        ctx_lo = max(0, anchor_idx - 6)
+        ctx_hi = min(len(seq), anchor_idx + 6)
+        ctx_text = "\n".join(f"{ln['who']}: {ln['text']}" for ln in seq[ctx_lo:ctx_hi])
+
+        # OpenAI 프롬프트 (초등 수준, 1줄, 괄호 지문 허용)
+        prm = (
+            "아래 연극 대본의 문맥을 자연스럽게 이어서, 지정된 인물의 대사를 한국어 한 줄로 만들어줘.\n"
+            "제약:\n"
+            f"- 인물 이름: '{role}'\n"
+            "- 출력은 반드시 한 줄, 형식은 '이름: 대사'.\n"
+            "- 초등학생 눈높이(친절/간결/품위). 과도한 갈등/폭력/비속어 금지.\n"
+            "- 필요할 경우 ( ) 안에 아주 짧은 지문 1개까지 허용.\n"
+            "- 이미 바로 앞에서 같은 말 반복하지 말고, 대화가 앞으로 나아가게.\n\n"
+            "문맥:\n" + ctx_text
+        )
+
+        if not OPENAI_API_KEY:
+            raise RuntimeError("no api key")
+
+        out = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role":"user","content":prm}],
+            temperature=0.6,
+            max_tokens=90,
+        ).choices[0].message.content.strip()
+
+        # '이름: 내용' 보장/정리
+        line = out.splitlines()[0].strip()
+        # 혹시 모델이 이름 없이 준 경우 보정
+        if not re.match(rf"^\s*{re.escape(role)}\s*[:：]", line):
+            line = f"{role}: " + _strip_role_prefix(line, role)
+        # 본문만 리턴 (페이지 로직은 who/text로 나눠 쓰니까)
+        return _strip_role_prefix(line, role) or "(미소 지으며) 좋아, 한 번 해보자!"
+    except Exception:
+        # 폴백 문장(문맥 실패/오프라인/키 누락 시)
+        return "(고개를 끄덕이며) 좋아, 그 방법이 괜찮겠어!"
+    
 def page_role_balancer():
     st.header("⚖️ 3) 역할 밸런서(대사 수 조절)")
     # 스크립트 우선순위: 현재 스크립트 > 재분배된 것 > 최종 스크립트 > 원본 스크립트
@@ -960,34 +1009,68 @@ def page_role_balancer():
 
     if st.button("🔁 재분배하기 (더블 클릭)", key="btn_rebalance"):
         with st.spinner("⚖️ 역할을 재분배하고 있습니다..."):
-            new_seq=[]
-            # 현재 counts를 사용 (재분배된 스크립트가 있으면 그것을 사용)
-            current_counts = st.session_state.get("current_counts", counts)
-            need = {r:max(0, targets[r]-current_counts[r]) for r in roles}
-            excess = {r:max(0, current_counts[r]-targets[r]) for r in roles}
-            skip_step = {r:(current_counts[r]//excess[r] if excess[r]>0 else None) for r in roles}
-            seen = {r:0 for r in roles}
-            
-            # 재분배할 스크립트 선택 (재분배된 것이 있으면 그것을 사용)
-            script_to_rebalance = st.session_state.get("script_balanced") or script
-            seq_to_rebalance = build_sequence(script_to_rebalance)
-            
-            for ln in seq_to_rebalance:
-                r = ln["who"]; seen[r]+=1
-                if excess[r]>0 and skip_step[r] and (seen[r] % max(1,skip_step[r])==0) and current_counts[r]>targets[r]:
-                    current_counts[r]-=1; continue
-                new_seq.append(ln)
-            for r in roles:
-                while need[r]>0:
-                    new_seq.append({"who":r, "text":"(무대 중앙을 보며) 네, 알겠어!"}); need[r]-=1
-            st.session_state["script_balanced"]="\n".join([f"{x['who']}: {x['text']}" for x in new_seq])
-            st.success("✅ 재분배 완료!")
+
+        # ── 준비: 현재 카운트/목표/과잉·부족 계산(기존코드 그대로)
+         current_counts = st.session_state.get("current_counts", counts)
+        need   = {r: max(0, targets[r] - current_counts[r]) for r in roles}
+        excess = {r: max(0, current_counts[r] - targets[r]) for r in roles}
+        skip_step = {r: (current_counts[r] // excess[r] if excess[r] > 0 else None) for r in roles}
+        seen = {r: 0 for r in roles}
+
+        # ── 0) 재분배할 원본 시퀀스 확보
+        script_to_rebalance = st.session_state.get("script_balanced") or script
+        seq_to_rebalance = build_sequence(script_to_rebalance)
+
+        # ── 1) 과잉 대사 드롭하여 base 시퀀스 만들기 → new_seq **여기서 생성**
+        new_seq = []
+        for ln in seq_to_rebalance:
+            r = ln["who"]
+            seen[r] += 1
+            if excess[r] > 0 and skip_step[r] and (seen[r] % max(1, skip_step[r]) == 0) and current_counts[r] > targets[r]:
+                current_counts[r] -= 1  # 이 줄은 버림
+                continue
+            new_seq.append(ln)
+
+        # ── 2) 부족한 역할 대사 채우기(문맥 기반 1줄 생성 + 균등 분산 삽입)
+        for r in roles:
+            k = int(need[r])
+            if k <= 0:
+                continue
+
+            # new_seq가 비어있으면 안전 가드: 그냥 k줄 append
+            if len(new_seq) == 0:
+                for _ in range(k):
+                    content = _gen_contextual_line(r, new_seq, 0)
+                    new_seq.append({"who": r, "text": content})
+                continue
+
+            # (a) 삽입 지점 계산: 전체를 k+1로 등분해서 각 구간 끝쪽에 한 줄
+            step = max(1, len(new_seq) // (k + 1))
+            anchors = []
+            for i in range(k):
+                pos = step * (i + 1) - 1
+                anchors.append(min(len(new_seq) - 1, max(0, pos)))
+
+            # (b) 실제 삽입 (앞에서부터 넣으면 인덱스 밀려서 shift 보정)
+            shift = 0
+            for anchor in anchors:
+                anchor_idx = min(len(new_seq) - 1, max(0, anchor + shift))
+                content = _gen_contextual_line(r, new_seq, anchor_idx)  # 문맥 기반 한 줄 생성
+                insert_at = min(len(new_seq), anchor_idx + 1)
+                new_seq.insert(insert_at, {"who": r, "text": content})
+                shift += 1
+
+        # ── 3) 저장/미리보기 반영
+        st.session_state["script_balanced"] = "\n".join([f"{x['who']}: {x['text']}" for x in new_seq])
+        st.session_state["current_script"] = st.session_state["script_balanced"]
+        st.success("✅ 재분배 완료!")
+
             
             # 재분배된 스크립트를 현재 script로 설정하여 즉시 반영
-            st.session_state["current_script"] = st.session_state["script_balanced"]
+        st.session_state["current_script"] = st.session_state["script_balanced"]
             
             # 왼쪽 메뉴 다음 단계 안내
-            st.session_state["next_step_hint"] = "역할 재분배 완료! 다음 단계로 이동하세요."
+        st.session_state["next_step_hint"] = "역할 재분배 완료! 다음 단계로 이동하세요."
 
     if st.session_state.get("script_balanced"):
         st.subheader("재분배 결과 미리보기")
