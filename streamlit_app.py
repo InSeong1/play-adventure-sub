@@ -826,11 +826,11 @@ def render_prosody_card(pros: dict):
                     f"<div class='kv'><div class='k'>F0(Hz)</div><div class='v'>{(int(pros.get('f0_hz')) if pros.get('f0_hz') else '—')}</div></div>"+
                     "</div>", unsafe_allow_html=True)
 
-# ───────── 페이지 1: 대본 업로드/입력 ──────────────────────────────
+# ───────── 페이지 1: 대본 등록/입력 ──────────────────────────────
 def page_script_input():
     # 용 소개 이미지 추가
     st.image("assets/dragon_intro.png", width=400, use_container_width =True)
-    st.header("📥 1) 대본 업로드/입력")
+    st.header("📥 1) 대본 등록")
     c1,c2 = st.columns(2)
     with c1:
         up = st.file_uploader("손글씨/이미지 업로드(OCR)", type=["png","jpg","jpeg"], key="u_ocr")
@@ -920,9 +920,9 @@ def page_feedback_script():
             st.session_state["script"] = edited_script
             st.success("✅ 대본이 저장되었습니다!")
 
-# ───────── 페이지 3: 역할 밸런서 ───────────────────────────────────
+# ───────── 페이지 3: 대사 수 조절하기 ───────────────────────────────────
 def page_role_balancer():
-    st.header("⚖️ 3) 역할 밸런서(대사 수 조절)")
+    st.header("⚖️ 3) 대사 수 조절하기")
     # 스크립트 우선순위: 현재 스크립트 > 재분배된 것 > 최종 스크립트 > 원본 스크립트
     script = st.session_state.get("current_script") or st.session_state.get("script_balanced") or st.session_state.get("script_final") or st.session_state.get("script_raw","")
     if not script: st.warning("먼저 대본을 입력/생성하세요."); return
@@ -946,7 +946,9 @@ def page_role_balancer():
         # counts를 session_state에 저장
         st.session_state["current_counts"] = counts
     
-    st.write(counts)
+    # counts를 깔끔하게 표시 (중괄호 제거)
+    for role, count in counts.items():
+        st.write(f"{role}: {count}")
     st.markdown("생성된 대본의 줄 수를 알려줘요.")
 
     st.subheader("목표 대사 수 설정")
@@ -979,7 +981,7 @@ def page_role_balancer():
                 new_seq.append(ln)
             for r in roles:
                 while need[r]>0:
-                    new_seq.append({"who":r, "text":"(무대 중앙을 보며) 네, 알겠어!"}); need[r]-=1
+                    new_seq.append({"who":r, "text":"새로운 대사를 상황에 맞게 추가해주세요!"}); need[r]-=1
             st.session_state["script_balanced"]="\n".join([f"{x['who']}: {x['text']}" for x in new_seq])
             st.success("✅ 재분배 완료!")
             
@@ -1014,9 +1016,9 @@ def page_stage_kits():
             # 왼쪽 메뉴 다음 단계 안내
             st.session_state["next_step_hint"] = "체크리스트 완성! 다음 단계로 이동하세요."
 
-# ───────── 페이지 5: 리허설 파트너 ────────────────────────────────
+# ───────── 페이지 5: AI 대본 연습 ────────────────────────────────
 def page_rehearsal_partner():
-    st.header("🎙️ 5) 리허설 파트너 — 줄 단위 STT(REST, 한 번 클릭→자동 분석)")
+    st.header("🎙️ 5) AI 대본 연습 — 줄 단위 STT(REST, 한 번 클릭→자동 분석)")
 
     script = st.session_state.get("script_final") or st.session_state.get("script_balanced") or st.session_state.get("script_raw","")
     if not script:
@@ -1249,14 +1251,14 @@ def main():
     st.subheader("연극 용과 함께 완성도 있는 연극을 완성하고 연습해보자!")
 
     if "current_page" not in st.session_state:
-        st.session_state["current_page"]="📥 1) 대본 업로드/입력"
+        st.session_state["current_page"]="📥 1) 대본 등록"
 
     pages = {
-        "📥 1) 대본 업로드/입력": page_script_input,
+        "📥 1) 대본 등록": page_script_input,
         "🛠️ 2) 대본 피드백 & 완성본": page_feedback_script,
-        "⚖️ 3) 역할 밸런서": page_role_balancer,
+        "⚖️ 3) 대사 수 조절하기": page_role_balancer,
         "🎭 4) 소품·무대·의상": page_stage_kits,
-        "🎙️ 5) 리허설 파트너": page_rehearsal_partner
+        "🎙️ 5) AI 대본 연습": page_rehearsal_partner
     }
 
     #sidebar_status()
