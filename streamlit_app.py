@@ -425,10 +425,10 @@ VOICE_MAP_SAFE = {
     "민준 (남성, 따뜻하고 친근한 목소리)": "alloy",
     "현우 (남성, 차분하고 신뢰감 있는 목소리)": "verse", 
     "지호 (남성, 활기차고 밝은 목소리)": "onyx",
-    "지민 (여성, 부드럽고 친절한 목소리)": "coral",
-    "소연 (여성, 귀엽고 명랑한 목소리)": "nova",
-    "하은 (여성, 차분하고 우아한 목소리)": "echo",
-    "민지 (여성, 밝고 경쾌한 목소리)": "shimmer"
+    "지민 (여성, 부드럽고 친절한 목소리)": "nova",
+    "소연 (여성, 귀엽고 명랑한 목소리)": "shimmer",
+    "하은 (여성, 차분하고 우아한 목소리)": "coral",
+    "민지 (여성, 밝고 경쾌한 목소리)": "echo"
 }
 
 def _pitch_shift_mp3(mp3_bytes: bytes, semitones: float) -> bytes:
@@ -458,21 +458,26 @@ def tts_speak_line(text: str, voice_label: str) -> Tuple[str, Optional[bytes]]:
         if r.status_code!=200:
             st.error(f"TTS 오류: {r.status_code} - {r.text}"); return speak_text, None
         audio = r.content
-        # 목소리별 톤 보정 (나이대와 성별 고려)
-        if "10대" in voice_label:
-            if "여성" in voice_label:
-                audio = _pitch_shift_mp3(audio, +2.0)  # 10대 여성: 약간 높게
+        # 목소리별 톤 보정 (성별과 특성 고려)
+        if "여성" in voice_label:
+            # 모든 여성 목소리를 더 여성스럽게 조정
+            if "지민" in voice_label:  # 부드럽고 친절한 목소리
+                audio = _pitch_shift_mp3(audio, +2.5)  # 더 부드럽고 여성스럽게
+            elif "소연" in voice_label:  # 귀엽고 명랑한 목소리
+                audio = _pitch_shift_mp3(audio, +3.0)  # 더 귀엽고 높은 톤
+            elif "하은" in voice_label:  # 차분하고 우아한 목소리
+                audio = _pitch_shift_mp3(audio, +2.0)  # 우아하고 여성스럽게
+            elif "민지" in voice_label:  # 밝고 경쾌한 목소리
+                audio = _pitch_shift_mp3(audio, +2.8)  # 밝고 경쾌하게
             else:
+                audio = _pitch_shift_mp3(audio, +2.0)  # 기본 여성 톤
+        elif "남성" in voice_label:
+            # 남성 목소리는 기존 설정 유지
+            if "10대" in voice_label:
                 audio = _pitch_shift_mp3(audio, +1.0)  # 10대 남성: 살짝 높게
-        elif "20대" in voice_label:
-            if "여성" in voice_label:
-                audio = _pitch_shift_mp3(audio, +1.5)  # 20대 여성: 적당히 높게
-            else:
+            elif "20대" in voice_label:
                 audio = _pitch_shift_mp3(audio, -0.5)  # 20대 남성: 살짝 낮게
-        elif "30대" in voice_label:
-            if "여성" in voice_label:
-                audio = _pitch_shift_mp3(audio, +1.0)  # 30대 여성: 약간 높게
-            else:
+            elif "30대" in voice_label:
                 audio = _pitch_shift_mp3(audio, -1.0)  # 30대 남성: 낮게
         return speak_text, audio
     except Exception as e:
@@ -613,17 +618,17 @@ def _analyze_wav_pure(audio_bytes: bytes, stt_text: str) -> dict:
         wps = (len((stt_text or "").split())/voiced) if stt_text else None
         def lab_speed(s):
             if s is None: return "데이터 부족"
-            if s>=5.0: return "너무 빠름"
-            if s>=4.0: return "빠름"
-            if s>=2.0: return "적당함"
-            if s>=1.2: return "느림"
+            if s>=7.3: return "너무 빠름"
+            if s>=6.6: return "빠름"
+            if s>=5.2: return "적당함"
+            if s>=3.8: return "느림"
             return "너무 느림"
         def lab_volume(db):
             if db is None: return "데이터 부족"
-            if db>=-9: return "너무 큼"
-            if db>=-15: return "큼"
-            if db>=-25: return "적당함"
-            if db>=-35: return "작음"
+            if db>=-13: return "너무 큼"
+            if db>=-23: return "큼"
+            if db>=-37: return "적당함"
+            if db>=-47: return "작음"
             return "너무 작음"
         spacing = ("잘 띄어 읽음" if 0.08<=pause_ratio<=0.28 else
                    "보통" if 0.04<=pause_ratio<0.08 or 0.28<pause_ratio<=0.40 else
@@ -951,49 +956,118 @@ def page_role_balancer():
         st.write(f"{role}: {count}")
     st.markdown("생성된 대본의 줄 수를 알려줘요.")
 
-    st.subheader("목표 대사 수 설정")
-    st.markdown("대사의 양을 골고루 분배해 보아요.")
-    targets={}
-    cols = st.columns(min(4, max(1,len(roles))))
-    for i,r in enumerate(roles):
-        with cols[i % len(cols)]:
+    # 대본과 설정을 나란히 배치
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.subheader("📜 현재 대본")
+        # 대본을 적당한 크기의 텍스트 영역으로 표시
+        current_script = st.session_state.get("script_balanced") or script
+        st.text_area(
+            "대본 내용",
+            value=current_script,
+            height=300,
+            key="script_viewer",
+            disabled=True,
+            help="현재 대본을 확인하세요. 재분배 후에는 새로운 대본이 표시됩니다."
+        )
+    
+    with col2:
+        st.subheader("🎯 목표 대사 수 설정")
+        st.markdown("대사의 양을 골고루 분배해 보아요.")
+        targets={}
+        for r in roles:
             # 재분배 후에는 업데이트된 counts를 기본값으로 사용
             targets[r]=st.number_input(f"{r} 목표", min_value=0, value=counts[r], step=1, key=f"tgt_{r}")
 
-    if st.button("🔁 재분배하기 (더블 클릭)", key="btn_rebalance"):
-        with st.spinner("⚖️ 역할을 재분배하고 있습니다..."):
-            new_seq=[]
-            # 현재 counts를 사용 (재분배된 스크립트가 있으면 그것을 사용)
-            current_counts = st.session_state.get("current_counts", counts)
-            need = {r:max(0, targets[r]-current_counts[r]) for r in roles}
-            excess = {r:max(0, current_counts[r]-targets[r]) for r in roles}
-            skip_step = {r:(current_counts[r]//excess[r] if excess[r]>0 else None) for r in roles}
-            seen = {r:0 for r in roles}
-            
-            # 재분배할 스크립트 선택 (재분배된 것이 있으면 그것을 사용)
-            script_to_rebalance = st.session_state.get("script_balanced") or script
-            seq_to_rebalance = build_sequence(script_to_rebalance)
-            
-            for ln in seq_to_rebalance:
-                r = ln["who"]; seen[r]+=1
-                if excess[r]>0 and skip_step[r] and (seen[r] % max(1,skip_step[r])==0) and current_counts[r]>targets[r]:
-                    current_counts[r]-=1; continue
-                new_seq.append(ln)
-            for r in roles:
-                while need[r]>0:
-                    new_seq.append({"who":r, "text":"새로운 대사를 상황에 맞게 추가해주세요!"}); need[r]-=1
-            st.session_state["script_balanced"]="\n".join([f"{x['who']}: {x['text']}" for x in new_seq])
-            st.success("✅ 재분배 완료!")
-            
-            # 재분배된 스크립트를 현재 script로 설정하여 즉시 반영
-            st.session_state["current_script"] = st.session_state["script_balanced"]
-            
-            # 왼쪽 메뉴 다음 단계 안내
-            st.session_state["next_step_hint"] = "역할 재분배 완료! 다음 단계로 이동하세요."
+    # 재분배 버튼을 전체 너비로 배치
+    st.markdown("---")
+    if st.button("🔁 재분배하기", key="btn_rebalance", use_container_width=True):
+        # 로딩 상태 표시
+        loading_placeholder = st.empty()
+        loading_placeholder.info("⚖️ 역할을 재분배하고 있습니다...")
+        
+        new_seq=[]
+        # 현재 counts를 사용 (재분배된 스크립트가 있으면 그것을 사용)
+        current_counts = st.session_state.get("current_counts", counts)
+        need = {r:max(0, targets[r]-current_counts[r]) for r in roles}
+        excess = {r:max(0, current_counts[r]-targets[r]) for r in roles}
+        skip_step = {r:(current_counts[r]//excess[r] if excess[r]>0 else None) for r in roles}
+        seen = {r:0 for r in roles}
+        
+        # 재분배할 스크립트 선택 (재분배된 것이 있으면 그것을 사용)
+        script_to_rebalance = st.session_state.get("script_balanced") or script
+        seq_to_rebalance = build_sequence(script_to_rebalance)
+        
+        for ln in seq_to_rebalance:
+            r = ln["who"]; seen[r]+=1
+            if excess[r]>0 and skip_step[r] and (seen[r] % max(1,skip_step[r])==0) and current_counts[r]>targets[r]:
+                current_counts[r]-=1; continue
+            new_seq.append(ln)
+        # AI가 적절한 대사 생성
+        for r in roles:
+            while need[r]>0:
+                # 현재 스크립트의 맥락을 파악하여 적절한 대사 생성
+                context_prompt = f"""
+초등학생 연극용 대본에서 '{r}' 캐릭터의 대사를 추가로 생성해주세요.
 
-    if st.session_state.get("script_balanced"):
-        st.subheader("재분배 결과 미리보기")
-        st.code(st.session_state["script_balanced"], language="text")
+기존 대본 맥락:
+{script_to_rebalance}
+
+요구사항:
+1. '{r}' 캐릭터의 기존 성격과 말투를 유지하세요
+2. 초등학생이 이해하기 쉬운 단순하고 명확한 대사로 작성하세요
+3. 기존 대본의 흐름과 자연스럽게 연결되도록 하세요
+4. 지문(괄호)은 포함하지 말고 순수한 대사만 작성하세요
+5. 한 줄로 간결하게 작성하세요
+6. 반드시 '{r}: 대사내용' 형식으로만 답변하세요
+
+예시:
+구리: 안녕하세요!
+스팸: 알알!
+
+'{r}' 캐릭터의 새로운 대사 (반드시 '{r}: 대사내용' 형식으로):
+"""
+                try:
+                    ai_response = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[{"role":"user","content":context_prompt}],
+                        temperature=0.7, max_tokens=100
+                    )
+                    ai_response_text = ai_response.choices[0].message.content.strip()
+                    
+                    # AI 응답에서 대사 내용만 추출
+                    if f"{r}:" in ai_response_text:
+                        # "이름: 대사" 형식에서 대사 부분만 추출
+                        dialogue_part = ai_response_text.split(f"{r}:", 1)[1].strip()
+                    else:
+                        # 형식이 맞지 않으면 전체 텍스트를 대사로 사용
+                        dialogue_part = ai_response_text
+                    
+                    # 대사가 너무 길면 자르기
+                    if len(dialogue_part) > 100:
+                        dialogue_part = dialogue_part[:100] + "..."
+                    
+                    new_seq.append({"who":r, "text":dialogue_part})
+                except Exception as e:
+                    # AI 생성 실패 시 기본 메시지 사용
+                    new_seq.append({"who":r, "text":"새로운 대사를 상황에 맞게 추가해주세요!"})
+                need[r]-=1
+        
+        st.session_state["script_balanced"]="\n".join([f"{x['who']}: {x['text']}" for x in new_seq])
+        
+        # 로딩 메시지 제거
+        loading_placeholder.empty()
+        st.success("✅ 재분배 완료!")
+        
+        # 재분배된 스크립트를 현재 script로 설정하여 즉시 반영
+        st.session_state["current_script"] = st.session_state["script_balanced"]
+        
+        # 페이지 새로고침하여 대본이 즉시 업데이트되도록 함
+        st.rerun()
+        
+        # 왼쪽 메뉴 다음 단계 안내
+        st.session_state["next_step_hint"] = "역할 재분배 완료! 다음 단계로 이동하세요."
 
 # ───────── 페이지 4: 소품·무대·의상 ─────────────────────────────────
 def page_stage_kits():
@@ -1001,8 +1075,8 @@ def page_stage_kits():
     st.markdown("연극에 필요한 소품을 AI가 추천해줘요.")
     script = st.session_state.get("script_final") or st.session_state.get("script_balanced") or st.session_state.get("script_raw","")
     if not script: st.warning("먼저 대본을 입력/생성하세요."); return
-    if st.button("🧰 체크리스트 만들기", key="btn_kits"):
-        with st.spinner("🧰 소품·무대·의상 체크리스트를 생성하고 있습니다..."):
+    if st.button("🧰 목록 만들기", key="btn_kits"):
+        with st.spinner("🧰 소품·무대·의상 목록을 생성하고 있습니다..."):
             prm = ("다음 대본을 바탕으로 초등 연극용 소품·무대·의상 체크리스트를 만들어주세요.\n"
                    "구성: [필수/선택/대체/안전 주의] 4섹션 표(마크다운) + 간단 팁.\n\n대본:\n"+script)
             res = client.chat.completions.create(
@@ -1010,7 +1084,7 @@ def page_stage_kits():
                 temperature=0.4, max_tokens=1200
             ).choices[0].message.content
             st.session_state["stage_kits"] = res
-            st.success("✅ 체크리스트 생성 완료!")
+            st.success("✅ 목록 생성 완료!")
             st.markdown(res or "(생성 실패)")
             
             # 왼쪽 메뉴 다음 단계 안내
@@ -1055,10 +1129,10 @@ def page_rehearsal_partner():
             "민준 (남성, 따뜻하고 친근한 목소리)": "🎭 **따뜻하고 친근한 목소리** - 선생님이나 부모님 역할에 적합해요!",
             "현우 (남성, 차분하고 신뢰감 있는 목소리)": "🎭 **차분하고 신뢰감 있는 목소리** - 의사나 경찰관 같은 전문직 역할에 좋아요!",
             "지호 (남성, 활기차고 밝은 목소리)": "🎭 **활기차고 밝은 목소리** - 친구나 동생 역할에 어울려요!",
-            "지민 (여성, 부드럽고 친절한 목소리)": "🎭 **부드럽고 친절한 목소리** - 친절한 선생님이나 언니 역할에 어울려요!",
-            "소연 (여성, 귀엽고 명랑한 목소리)": "🎭 **귀엽고 명랑한 목소리** - 귀여운 친구나 동생 역할에 최고예요!",
-            "하은 (여성, 차분하고 우아한 목소리)": "🎭 **차분하고 우아한 목소리** - 우아한 공주나 여왕 역할에 어울려요!",
-            "민지 (여성, 밝고 경쾌한 목소리)": "🎭 **밝고 경쾌한 목소리** - 활발한 친구나 운동선수 역할에 어울려요!"
+            "지민 (여성, 부드럽고 친절한 목소리)": "🎭 **부드럽고 친절한 여성 목소리** - 친절한 선생님이나 언니 역할에 어울려요! ✨",
+            "소연 (여성, 귀엽고 명랑한 목소리)": "🎭 **귀엽고 명랑한 여성 목소리** - 귀여운 친구나 동생 역할에 최고예요! ✨",
+            "하은 (여성, 차분하고 우아한 목소리)": "🎭 **차분하고 우아한 여성 목소리** - 우아한 공주나 여왕 역할에 어울려요! ✨",
+            "민지 (여성, 밝고 경쾌한 목소리)": "🎭 **밝고 경쾌한 여성 목소리** - 활발한 친구나 운동선수 역할에 어울려요! ✨"
         }
         
         st.success(f"✅ **선택된 목소리**: {voice_label}")
@@ -1096,8 +1170,8 @@ def page_rehearsal_partner():
     # 현재 줄
     cur_idx = st.session_state.get("duet_cursor", 0)
     if cur_idx >= len(seq):
-        st.success("🎉 끝까지 진행했습니다. 이제 세션 종료 & 종합 피드백을 받아보세요!")
-        st.info("💡 아래의 '🏁 세션 종료 & 종합 피드백' 버튼을 눌러 연습 결과를 확인해보세요!")
+        st.success("🎉 끝까지 진행했습니다. 이제 연습 종료 & 종합 피드백을 받아보세요!")
+        st.info("💡 아래의 '🏁 연습 종료 & 종합 피드백' 버튼을 눌러 연습 결과를 확인해보세요!")
     else:
         cur_line = seq[cur_idx]
         st.markdown(f"#### 현재 줄 #{cur_idx+1}: **{cur_line['who']}** — {cur_line['text']}")
@@ -1190,7 +1264,7 @@ def page_rehearsal_partner():
                     if hasattr(st, "rerun"): st.rerun()
 
     # 세션 종합 피드백
-    if st.button("🏁 세션 종료 & 종합 피드백", key="end_feedback"):
+    if st.button("🏁 연습 종료 & 종합 피드백", key="end_feedback"):
         with st.spinner("🏁 종합 피드백을 생성하고 있습니다..."):
             feed = client.chat.completions.create(
                 model="gpt-4o-mini",
