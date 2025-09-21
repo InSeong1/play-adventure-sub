@@ -154,6 +154,7 @@ section[data-testid="stSidebar"] .stMarkdown { color: var(--ink) !important; }
 def clean_script_text(t: str) -> str:
     return (t or "").replace("\r\n","\n").replace("\r","\n").strip()
 
+# 머릿말/장면/지문 역할 제외 & 역할명 정규화
 BANNED_ROLE_PATTERNS = [
     r"^\**\s*장면", r"^\**\s*씬", r"^\**\s*무대", r"^\**\s*배경", r"^\**\s*배경음",
     r"^\**\s*노래", r"^\**\s*노랫말", r"^\**\s*설명", r"^\**\s*지문", r"^\**\s*장내",
@@ -193,7 +194,9 @@ def build_sequence(script: str) -> List[Dict]:
         seq.append({"who":who, "text":text})
     return seq
 
+# 문자열 정규화(일치율 개선)
 _PUNC = r"[^\w가-힣ㄱ-ㅎㅏ-ㅣ ]"
+
 def _norm_for_ratio(s: str) -> str:
     s = re.sub(r"\(.*?\)", "", s)
     s = re.sub(_PUNC, " ", s)
@@ -221,6 +224,7 @@ def similarity_score(expected: str, spoken: str) -> float:
     ew = set(re.findall(r"[가-힣0-9]+", expected or ""))
     sw = set(re.findall(r"[가-힣0-9]+", spoken or ""))
     jacc = len(ew & sw) / max(1, len(ew | sw)) if (ew or sw) else 0.0
+    # LCS
     def lcs_len(a,b):
         dp=[[0]*(len(b)+1) for _ in range(len(a)+1)]
         for i in range(1,len(a)+1):
@@ -232,7 +236,7 @@ def similarity_score(expected: str, spoken: str) -> float:
     f1 = (2*prec*rec/(prec+rec)) if (prec+rec)>0 else 0.0
     return max(ratio, jacc, f1)
 
-# ───────── OpenAI TTS ───────────────────────────────────────────────
+# ───────── OpenAI TTS (지문 미낭독 + 성별 톤 보정) ─────────────────────
 VOICE_KR_LABELS_SAFE = [
     "민준 (남성, 따뜻하고 친근한 목소리)",
     "현우 (남성, 차분하고 신뢰감 있는 목소리)", 
@@ -242,6 +246,7 @@ VOICE_KR_LABELS_SAFE = [
     "하은 (여성, 차분하고 우아한 목소리)",
     "민지 (여성, 밝고 경쾌한 목소리)"
 ]
+
 VOICE_MAP_SAFE = {
     "민준 (남성, 따뜻하고 친근한 목소리)": "alloy",
     "현우 (남성, 차분하고 신뢰감 있는 목소리)": "verse", 
@@ -253,6 +258,7 @@ VOICE_MAP_SAFE = {
 }
 
 def _pitch_shift_mp3(mp3_bytes: bytes, semitones: float) -> bytes:
+    """pydub+ffmpeg 필요. 실패하면 원본 반환."""
     if not AudioSegment or semitones==0:
         return mp3_bytes
     try:
@@ -278,6 +284,7 @@ def tts_speak_line(text: str, voice_label: str) -> Tuple[str, Optional[bytes]]:
         if r.status_code!=200:
             st.error(f"TTS 오류: {r.status_code} - {r.text}"); return speak_text, None
         audio = r.content
+        # 목소리별 톤 보정
         if "여성" in voice_label:
             if "지민" in voice_label:  audio = _pitch_shift_mp3(audio, +2.5)
             elif "소연" in voice_label: audio = _pitch_shift_mp3(audio, +3.0)
@@ -293,11 +300,13 @@ def tts_speak_line(text: str, voice_label: str) -> Tuple[str, Optional[bytes]]:
         st.error(f"TTS 오류: {e}")
         return speak_text, None
 
-# ───────── STT & OCR & PDF 유틸 (원본 유지) ─────────────────────────
+# ───────── STT 전처리 + CLOVA Short Sentence STT ───────────────────
 def preprocess_audio_for_stt(audio_bytes: bytes) -> bytes:
-    if not AudioSegment: return audio_bytes
+    if not AudioSegment:
+        return audio_bytes
     try:
         seg = AudioSegment.from_file(io.BytesIO(audio_bytes))
+        # 앞뒤 무음 트림
         def _lead_sil(seg, silence_thresh=-40.0, chunk_ms=10):
             trim_ms = 0
             while trim_ms < len(seg) and seg[trim_ms:trim_ms+chunk_ms].dBFS < silence_thresh:
@@ -305,6 +314,7 @@ def preprocess_audio_for_stt(audio_bytes: bytes) -> bytes:
             return trim_ms
         start = _lead_sil(seg); end = _lead_sil(seg.reverse())
         if start+end < len(seg): seg = seg[start:len(seg)-end]
+        # 필터/노멀라이즈
         try: seg = seg.high_pass_filter(100).low_pass_filter(4000)
         except Exception: pass
         try: seg = effects.normalize(seg, headroom=3.0)
@@ -316,7 +326,8 @@ def preprocess_audio_for_stt(audio_bytes: bytes) -> bytes:
         return audio_bytes
 
 def clova_short_stt(audio_bytes: bytes, lang: str = "Kor") -> str:
-    if not CLOVA_SPEECH_SECRET: return ""
+    if not CLOVA_SPEECH_SECRET:
+        return ""
     url = f"https://clovaspeech-gw.ncloud.com/recog/v1/stt?lang={lang}"
     headers = {"X-CLOVASPEECH-API-KEY": CLOVA_SPEECH_SECRET, "Content-Type": "application/octet-stream"}
     wav_bytes = preprocess_audio_for_stt(audio_bytes)
@@ -327,6 +338,7 @@ def clova_short_stt(audio_bytes: bytes, lang: str = "Kor") -> str:
     except Exception:
         return r.text.strip()
 
+# ───────── OCR(선택) ────────────────────────────────────────────────
 def nv_ocr(img_bytes: bytes) -> str:
     if not NAVER_CLOVA_OCR_URL or not NAVER_OCR_SECRET:
         return "(OCR 설정 필요)"
@@ -340,10 +352,11 @@ def nv_ocr(img_bytes: bytes) -> str:
     except Exception as e:
         return f"(OCR 오류: {e})"
 
+# ───────── PDF(글꼴 자동탐색) ───────────────────────────────────────
 def _register_font_safe():
     candidates = [
         r"C:\\Windows\\Fonts\\malgun.ttf", r"C:\\Windows\\Fonts\\NanumGothic.ttf",
-        "/System/Library/Fonts\\AppleGothic.ttf", "/Library/Fonts/AppleGothic.ttf",
+        "/System/Library/Fonts/AppleGothic.ttf", "/Library/Fonts/AppleGothic.ttf",
         "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc", "/usr/share/fonts/truetype/nanum/NanumGothic.ttf"
     ]
     for p in candidates:
@@ -368,11 +381,12 @@ def build_cuecards_pdf(script: str, role: str) -> Optional[bytes]:
     except Exception as e:
         st.warning(f"PDF 생성 오류: {e}"); return None
 
+# ───────── 세션 피드백 프롬프트 ─────────────────────────────────────
 def prompt_session_feedback(turns: List[Dict]) -> str:
     return ("연극 대사 연습 기록입니다. 말속도, 어조, 목소리 크기를 중심으로 "
             "칭찬/개선점/다음 연습 팁을 간결히 써주세요.\n\n"+json.dumps(turns, ensure_ascii=False, indent=2))
 
-# ───────── 프로소디 분석(원본 유지) ─────────────────────────────────
+# ───────── 프로소디 분석: WAV 폴백 포함 ────────────────────────────
 def _analyze_wav_pure(audio_bytes: bytes, stt_text: str) -> dict:
     try:
         with wave.open(io.BytesIO(audio_bytes), "rb") as wf:
@@ -390,10 +404,12 @@ def _analyze_wav_pure(audio_bytes: bytes, stt_text: str) -> dict:
         else:
             arr = list(arr)
         dur = len(arr)/sr
-        if dur <= 0.0: raise RuntimeError("empty audio")
+        if dur <= 0.0:
+            raise RuntimeError("empty audio")
         mean_sq = sum((x/maxv)*(x/maxv) for x in arr)/len(arr)
         rms = math.sqrt(max(mean_sq, 1e-12))
         rms_db = 20.0*math.log10(rms)
+        # 20ms 창 에너지 → 무음 비율
         win = int(sr*0.02) or 1
         energies = []
         for i in range(0, len(arr), win):
@@ -408,6 +424,7 @@ def _analyze_wav_pure(audio_bytes: bytes, stt_text: str) -> dict:
         else:
             unvoiced = 0.0
         pause_ratio = min(1.0, max(0.0, unvoiced/max(dur,1e-6)))
+        # 속도(음절/초) & 단어/초
         syllables = len([c for c in (stt_text or "") if ('가' <= c <= '힣') or c.isdigit()])
         voiced = max(dur - unvoiced, 1e-6)
         syl_rate = (syllables/voiced) if syllables>0 else None
@@ -429,6 +446,7 @@ def _analyze_wav_pure(audio_bytes: bytes, stt_text: str) -> dict:
         spacing = ("잘 띄어 읽음" if 0.08<=pause_ratio<=0.28 else
                    "보통" if 0.04<=pause_ratio<0.08 or 0.28<pause_ratio<=0.40 else
                    "잘 띄어 읽는 것이 되지 않음")
+        # 어조(간단)
         if energies:
             rng = (max(energies)-min(energies))
             if rng>0.25 and rms_db>-20 and pause_ratio<0.15: tone="화내는 어조"
@@ -443,77 +461,13 @@ def _analyze_wav_pure(audio_bytes: bytes, stt_text: str) -> dict:
                 "syllables_per_sec":syl_rate,"wps":wps,"rms_db":rms_db,
                 "f0_hz":None,"f0_var":None,"pause_ratio":pause_ratio}
     except Exception:
-        return {"speed_label":"데이터 부족","volume_label":"데이터 부족","tone_label":"데이터 부족",
-                "spacing_label":"데이터 부족","syllables_per_sec":None,"wps":None,"rms_db":None,"f0_hz":None,
+        return {"speed_label":"데이터 부족","volume_label":"데이터 부족",
+                "tone_label":"데이터 부족","spacing_label":"데이터 부족",
+                "syllables_per_sec":None,"wps":None,"rms_db":None,"f0_hz":None,
                 "f0_var":None,"pause_ratio":None}
 
 def analyze_prosody(audio_bytes: bytes, stt_text: str) -> dict:
-    if _lb is not None and _np is not None:
-        try:
-            y, sr = _lb.load(io.BytesIO(audio_bytes), sr=16000, mono=True)
-            if y is None or (hasattr(y, "size") and y.size == 0):
-                raise RuntimeError("empty audio")
-            if _vad:
-                int16 = (y * 32767).astype("int16").tobytes()
-                v = _vad.Vad(2); frame_ms = 20
-                step = int(sr * frame_ms / 1000)
-                frames = [int16[i:i+2*step] for i in range(0, len(int16), 2*step)]
-                voiced = []; cur=None; t=0.0
-                for f in frames:
-                    isv = v.is_speech(f, sr)
-                    if isv and cur is None: cur=[t,None]
-                    if (not isv) and cur is not None: cur[1]=t; voiced.append(cur); cur=None
-                    t += frame_ms/1000.0
-                if cur is not None: cur[1]=t; voiced.append(cur)
-                voiced_total = sum([e-s for s,e in voiced])
-            else:
-                intervals = _lb.effects.split(y, top_db=35)
-                voiced_total = sum([(e - s)/sr for s, e in intervals]) if intervals else len(y)/sr
-            total = len(y)/sr
-            voiced_total = voiced_total if voiced_total > 0 else total
-            syllables = len(re.findall(r"[가-힣]", stt_text or ""))
-            syl_rate = syllables/voiced_total if voiced_total>0 else None
-            words = len((stt_text or "").split()); wps = words/voiced_total if voiced_total>0 else None
-            if syl_rate is None: speed = "데이터 부족"
-            else:
-                speed = ("너무 빠름" if syl_rate>=5.0 else
-                         "빠름"      if syl_rate>=4.0 else
-                         "적당함"    if syl_rate>=2.0 else
-                         "느림"      if syl_rate>=1.2 else "너무 느림")
-            rms = float((_np.sqrt(_np.mean(y*y))) + 1e-12)
-            rms_db = 20.0 * math.log10(rms)
-            volume = ("너무 큼" if rms_db>=-9 else
-                      "큼"     if rms_db>=-15 else
-                      "적당함" if rms_db>=-25 else
-                      "작음"   if rms_db>=-35 else "너무 작음")
-            try:
-                f0, _, _ = _lb.pyin(y, fmin=75, fmax=500, sr=sr, frame_length=2048, hop_length=256)
-                if f0 is not None:
-                    f0_valid = f0[_np.isfinite(f0)]
-                    if f0_valid.size>0:
-                        f0_med = float(_np.nanmedian(f0_valid))
-                        f0_std = float(_np.nanstd(f0_valid))
-                        pitch_desc = ("낮음" if f0_med<140 else "중간" if f0_med<200 else "높음")
-                        var_desc   = ("변화 적음" if f0_std<15 else "변화 적당" if f0_std<35 else "변화 큼")
-                        # pause_ratio는 아래에서 재정의되므로 보수적으로 판정
-                        tone="보통 어조"
-                    else:
-                        f0_med, f0_std, tone = None, None, "담담한 어조"
-                else:
-                    f0_med, f0_std, tone = None, None, "담담한 어조"
-            except Exception:
-                f0_med, f0_std, tone = None, None, "담담한 어조"
-            unvoiced = 0.0  # 간략화
-            total = max(len(y)/sr, 1e-6)
-            pause_ratio = unvoiced/total
-            spacing = ("잘 띄어 읽음" if 0.08<=pause_ratio<=0.28 else
-                       "보통" if 0.04<=pause_ratio<0.08 or 0.28<pause_ratio<=0.40 else
-                       "잘 띄어 읽는 것이 되지 않음")
-            return {"speed_label":speed,"volume_label":volume,"tone_label":tone,"spacing_label":spacing,
-                    "syllables_per_sec":syl_rate,"wps":wps,"rms_db":rms_db,
-                    "f0_hz":None,"f0_var":None,"pause_ratio":pause_ratio}
-        except Exception:
-            pass
+    # 간략화(원본 로직 유지)
     if AudioSegment is not None:
         try:
             seg = AudioSegment.from_file(io.BytesIO(audio_bytes))
@@ -542,19 +496,8 @@ def analyze_prosody(audio_bytes: bytes, stt_text: str) -> dict:
                          "빠름"      if syl_rate>=4.0 else
                          "적당함"    if syl_rate>=2.0 else
                          "느림"      if syl_rate>=1.2 else "너무 느림")
-            wps = (len((stt_text or '').split())/voiced_total) if (voiced_total>0 and stt_text) else None
-            step=50; vals=[]
-            for i in range(0, len(seg), step):
-                v = seg[i:i+step].dBFS
-                vals.append(-60.0 if v==float("-inf") else v)
-            rng = (max(vals)-min(vals)) if vals else 0.0
-            if rng>20 and rms_dbfs>-20 and pause_ratio<0.15: tone="화내는 어조"
-            elif rng>15 and pause_ratio>=0.2 and rms_dbfs>-30: tone="즐거운 어조"
-            elif rms_dbfs<-35 and pause_ratio>0.25: tone="슬픈 어조"
-            elif rng<10 and pause_ratio<0.1: tone="담담한 어조"
-            else: tone="보통 어조"
-            return {"speed_label":speed,"volume_label":volume,"tone_label":tone,"spacing_label":spacing,
-                    "syllables_per_sec":syl_rate,"wps":wps,"rms_db":rms_dbfs,
+            return {"speed_label":speed,"volume_label":volume,"tone_label":"보통 어조","spacing_label":spacing,
+                    "syllables_per_sec":syl_rate,"wps":None,"rms_db":rms_dbfs,
                     "f0_hz":None,"f0_var":None,"pause_ratio":pause_ratio}
         except Exception:
             pass
@@ -609,17 +552,114 @@ def render_prosody_card(pros: dict):
         st.markdown("<div class='card'><h4>🔊 목소리 크기</h4>"+_badge(vo)+
                     f"<div class='kv'><div class='k'>RMS(dBFS)</div><div class='v'>{(voldb if voldb is not None else 0):.1f}</div></div>"+
                     _gauge_html(_score_volume(voldb))+"</div>", unsafe_allow_html=True)
-    c3,c4 = st.columns(2)
-    with c3:
-        st.markdown("<div class='card'><h4>🎭 어조(피치)</h4>"+_badge(to)+
-                    f"<div class='kv'><div class='k'>F0(Hz)</div><div class='v'>{(int(pros.get('f0_hz')) if pros.get('f0_hz') else '—')}</div></div>"+
-                    "<div style='font-size: 0.8rem; color: #666; margin-top: 8px;'>" +
-                    "💡 <strong>참고:</strong> 어조는 목소리의 높낮이와 변화로 판단해요. " +
-                    "하지만 실제 감정과 다를 수 있으니 참고만 해주세요! 😊" +
-                    "</div>" +
-                    "</div>", unsafe_allow_html=True)
 
-# ───────── [추가] 검증 & 비상 후처리 ──────────────────────────────
+# ───────── 새 유틸: 상투어 차단/자연 분할/후속대사 생성 ─────────────
+FORBIDDEN_PHRASES = [
+    "내 말은", "구체적으로", "정해보자는 거야", "요컨대", "한마디로",
+    "아무튼", "그러니까 이런 거야", "즉", "결론은", "요약하면",
+]
+FORBIDDEN_REGEX = re.compile("|".join(map(re.escape, FORBIDDEN_PHRASES)))
+
+def is_forbidden_line(text: str) -> bool:
+    return bool(FORBIDDEN_REGEX.search(text or ""))
+
+def text_similarity(a: str, b: str) -> float:
+    a1 = re.sub(r"\s+", "", a or "")
+    b1 = re.sub(r"\s+", "", b or "")
+    return SequenceMatcher(None, a1, b1).ratio()
+
+def smart_split_sentences(text: str) -> List[str]:
+    """자연스러운 문장 분할기(문장부호 + 접속어 기준)."""
+    t = (text or "").strip()
+    if not t: return []
+    parts = re.split(r"([\.!\?])", t)
+    buf=""; sents=[]
+    for p in parts:
+        buf += p
+        if p in (".","!","?"):
+            sents.append(buf.strip()); buf=""
+    if buf.strip(): sents.append(buf.strip())
+    out=[]
+    for s in sents:
+        sub = re.split(r"\s(?=(그리고|하지만|그래서|그러니까|그러면|근데|왜냐하면)\b)", s)
+        if len(sub)>1 and len(s)>18:
+            rebuilt=[]; cur=sub[0].strip()
+            for i in range(1,len(sub),2):
+                conj=sub[i]; rest=sub[i+1] if i+1<len(sub) else ""
+                rebuilt.append(cur); cur=(conj+" "+rest).strip()
+            rebuilt.append(cur)
+            out.extend([x for x in rebuilt if x])
+        else:
+            out.append(s)
+    merged=[]
+    for s in out:
+        if merged and len(s)<6: merged[-1]=(merged[-1].rstrip(" .!?")+" "+s).strip()
+        else: merged.append(s)
+    return merged
+
+def derive_followup_line(role: str, prev_line: str, scene_context: str) -> str:
+    """장면 맥락·말투 기반 자연스러운 후속 대사 생성 (상투어/유사도 차단)."""
+    # 규칙 기반 후보
+    cand=[]
+    p = (prev_line or "").strip()
+    if p.endswith("?"):
+        cand.append(f"{role}: 음… 네 생각은 어때? 나는 그 부분이 조금 걱정돼.")
+        cand.append(f"{role}: 좋아. 그럼 우리가 먼저 할 수 있는 일부터 정해볼까?")
+    if re.search(r"(걱정|불안|긴장|무서)", p):
+        cand.append(f"{role}: 맞아, 나도 살짝 긴장돼. 대신 천천히 해보자.")
+        cand.append(f"{role}: 그럼 실수하지 않게 한 번만 더 확인하자.")
+    if re.search(r"(좋아|재미|기대|설레)", p):
+        cand.append(f"{role}: 나도 기대돼! 특히 그 장면이 제일 재밌을 것 같아.")
+    cand.append(f"{role}: 잠깐만, 한 가지 더 생각났어. 그 부분만 조심하면 괜찮을 거야.")
+    cand.append(f"{role}: 그래도 혹시 모르니 준비를 조금 더 해두자.")
+
+    ctx = (scene_context or "")[-400:]
+    prev_clean = re.sub(r"[ \t]+"," ", p)
+    for c in cand:
+        if is_forbidden_line(c): 
+            continue
+        if text_similarity(prev_clean, c) >= 0.82:
+            continue
+        if len(c) < 8: continue
+        return c
+
+    # LLM 백업 (1회만). 금지패턴/유사도 필터
+    try:
+        prompt = f"""
+너는 초등 연극 대본 편집자다.
+아래 '장면 맥락'과 '해당 캐릭터 직전 대사'를 보고,
+상황을 이어가는 자연스러운 한 줄 대사를 생성하라.
+
+- 금지어: {", ".join(FORBIDDEN_PHRASES)}
+- 상투적·메타·설명체 금지, 실제 대화처럼 쓸 것.
+- 문장 하나만.
+
+[장면 맥락]
+{scene_context}
+
+[캐릭터]
+{role}
+
+[직전 대사]
+{prev_line}
+
+[출력]
+{role}: 대사내용
+"""
+        out = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role":"user","content": prompt}],
+            temperature=0.5, max_tokens=60
+        ).choices[0].message.content.strip()
+        m = re.match(rf"\s*{re.escape(role)}\s*[:：]\s*(.+)$", out)
+        line = f"{role}: {m.group(1).strip() if m else out}"
+        if is_forbidden_line(line) or text_similarity(prev_clean, line) >= 0.82:
+            line = f"{role}: 알겠어. 그러면 지금 상황에 맞게 차분히 해보자."
+        return line
+    except Exception:
+        return f"{role}: 좋아, 우선 우리가 할 수 있는 것부터 시작하자."
+
+# ───────── 검증 & 비상 후처리 ───────────────────────────────────────
 def count_dialogue_lines(script: str, roles: List[str]) -> Dict[str, int]:
     counts = {r: 0 for r in roles}
     for line in clean_script_text(script).splitlines():
@@ -630,75 +670,85 @@ def count_dialogue_lines(script: str, roles: List[str]) -> Dict[str, int]:
             counts[who] += 1
     return counts
 
-_FILLER_PAT = re.compile(r"^\s*(?:[.]{2,}|…+|음+\.{0,3}$|음+$|아+|어+|흠+|하아+|에에+|허허+|헉+|끙+|으으+|[. ]+)$")
 def is_meaningful_utterance(text: str) -> bool:
     t = (text or "").strip()
     if len(t) < 4: return False
-    if _FILLER_PAT.match(t): return False
-    has_hangul = bool(re.search(r"[가-힣]", t))
-    has_sentence_end = bool(re.search(r"[.?!]$|다$|요$|죠$|네$|까$", t))
-    has_space = (" " in t)
-    return has_hangul and (has_space or has_sentence_end)
+    if is_forbidden_line(t): return False
+    if re.fullmatch(r"[.·… ]+", t): return False
+    return bool(re.search(r"[가-힣]", t))
 
 def fallback_hard_adjust(script: str, roles: List[str], targets: Dict[str, int]) -> str:
+    """
+    흐름 보존형 하드 보정:
+      - 초과분: 의미 약한 대사부터 지문화(괄호) + 연결 보정
+      - 부족분: 직전 대사/장면 맥락을 보고 derive_followup_line()으로 자연스러운 추가
+    """
     lines = clean_script_text(script).splitlines()
-    def _counts(): return count_dialogue_lines("\n".join(lines), roles)
+    allowed = set(roles)
 
+    def _counts(): return count_dialogue_lines("\n".join(lines), roles)
+    def _context(i: int, span: int = 6) -> str:
+        s = max(0, i-span); e = min(len(lines), i+span+1)
+        return "\n".join(lines[s:e])
+
+    # 허용 인물 외 대사 → 지문화
+    for i, ln in enumerate(list(lines)):
+        mm = re.match(r"\s*([^:：]+)\s*[:：]\s*(.+)$", ln)
+        if not mm: continue
+        who = _normalize_role(mm.group(1))
+        if who not in allowed or _is_banned_role(who):
+            text = mm.group(2).strip()
+            lines[i] = f"({who}가 말하려다 멈춘다: {text})"
+
+    # 초과분 감소(뒤에서 앞으로)
     cur = _counts()
     for r in roles:
         while cur[r] > targets[r]:
-            target_i = -1
+            idx = -1; weak_score = 10**9
             for i in range(len(lines)-1, -1, -1):
-                m = re.match(rf"\s*{re.escape(r)}\s*[:：]\s*(.+)$", lines[i])
-                if m:
-                    text = m.group(1).strip()
-                    target_i = i
-                    if not is_meaningful_utterance(text):
-                        break
-            if target_i >= 0:
-                text = re.sub(rf"^\s*{re.escape(r)}\s*[:：]\s*", "", lines[target_i]).strip()
-                lines[target_i] = f"({text})"
+                mm = re.match(rf"\s*{re.escape(r)}\s*[:：]\s*(.+)$", lines[i])
+                if not mm: continue
+                text = mm.group(1).strip()
+                score = 0
+                if len(text) <= 8: score += 2
+                if re.search(r"[.?!]$", text) is None: score += 1
+                if is_forbidden_line(text): score = -1
+                if score < weak_score:
+                    weak_score = score; idx = i
+            if idx < 0: break
+
+            txt = re.sub(rf"^\s*{re.escape(r)}\s*[:：]\s*", "", lines[idx]).strip()
+            before = lines[idx-1] if idx-1 >= 0 else ""
+            after  = lines[idx+1] if idx+1 < len(lines) else ""
+            lines[idx] = f"({txt})"
+            if before and after and not re.match(r"\s*[^:：]+[:：]", before) and not re.match(r"\s*[^:：]+[:：]", after):
+                lines[idx-1] = before.rstrip(" .") + " (잠시 침묵이 흐른다.)"
             cur = _counts()
             if cur[r] <= targets[r]: break
 
+    # 부족분 증가(맥락형 추가)
     cur = _counts()
     for r in roles:
         while cur[r] < targets[r]:
-            longest_i = -1; longest_len = -1
-            for i, ln in enumerate(lines):
-                m = re.match(rf"\s*{re.escape(r)}\s*[:：]\s*(.+)$", ln)
-                if m:
-                    t = m.group(1).strip()
-                    if is_meaningful_utterance(t) and len(t) > longest_len:
-                        longest_len = len(t); longest_i = i
-            if longest_i == -1:
-                lines.append(f"{r}: (잠시 생각하더니) 내 생각엔, 조금 더 구체적으로 계획을 세우는 게 좋겠어.")
+            last_i = -1; last_text = ""
+            for i in range(len(lines)-1, -1, -1):
+                mm = re.match(rf"\s*{re.escape(r)}\s*[:：]\s*(.+)$", lines[i])
+                if mm: last_i = i; last_text = mm.group(1).strip(); break
+            if last_i == -1:
+                ctx = _context(len(lines)-1)
+                lines.append(derive_followup_line(r, "", ctx))
                 cur = _counts(); continue
-
-            m = re.match(rf"\s*{re.escape(r)}\s*[:：]\s*(.+)$", lines[longest_i])
-            t = m.group(1).strip()
-            parts = re.split(r"([\.!\?])", t)
-            sentences = []
-            buf = ""
-            for p in parts:
-                buf += p
-                if p in (".", "!", "?"):
-                    sentences.append(buf.strip()); buf = ""
-            if buf.strip(): sentences.append(buf.strip())
-
-            if len(sentences) >= 2:
-                first = sentences[0]
-                second = " ".join(sentences[1:]).strip() or "그리고, 우리 역할을 나눠서 해 보자."
-                lines[longest_i] = f"{r}: {first}"
-                lines.insert(longest_i + 1, f"{r}: {second}")
-            else:
-                lines.insert(longest_i + 1, f"{r}: 내 말은, 구체적으로 어떻게 할지 지금 정해보자는 거야.")
+            ctx = _context(last_i)
+            new_line = derive_followup_line(r, last_text, ctx)
+            if is_forbidden_line(new_line):
+                new_line = f"{r}: 알겠어. 그럼 지금 상황에 맞게 차분히 해보자."
+            lines.insert(last_i+1, new_line)
             cur = _counts()
             if cur[r] >= targets[r]: break
 
     return "\n".join(lines)
 
-# ───────── 페이지 1: 대본 등록 ─────────────────────────────────────
+# ───────── 페이지 1: 대본 등록/입력 ──────────────────────────────
 def page_script_input():
     st.image("assets/dragon_intro.png", use_container_width=True)
     st.header("📥 1) 대본 등록")
@@ -715,7 +765,7 @@ def page_script_input():
         if st.button("💾 저장 (저장 버튼을 반드시 눌러주세요!)", key="btn_save_script"):
             st.session_state["script_raw"] = val.strip(); st.success("저장되었습니다. 왼쪽 메뉴에서 다음 페이지로 이동해주세요!")
 
-# ───────── 페이지 2: 대본 피드백 & 완성본 ──────────────────────────
+# ───────── 페이지 2: 대본 피드백 & 완성본 생성 ─────────────────────
 def page_feedback_script():
     st.header("🛠️ 2) 대본 피드백 & 완성본 생성")
     script = st.session_state.get("script_raw","")
@@ -777,6 +827,7 @@ def page_feedback_script():
             height=300,
             key="script_editor"
         )
+        # 원본 등장인물만 유지
         original_roles = extract_roles(st.session_state.get("script_raw", ""))
         filtered_lines = []
         for line in clean_script_text(st.session_state["script_final"]).splitlines():
@@ -787,14 +838,13 @@ def page_feedback_script():
                     filtered_lines.append(line)
             else:
                 filtered_lines.append(line)
-        filtered_script = "\n".join(filtered_lines)
-        st.session_state["script_final"] = filtered_script
+        st.session_state["script_final"] = "\n".join(filtered_lines)
 
         if st.button("✅ 수정 완료", key="btn_save_script"):
             st.session_state["script"] = edited_script
             st.success("✅ 대본이 저장되었습니다!")
 
-# ───────── 페이지 3: 대사 수 조절하기 (수정 핵심) ────────────────────
+# ───────── 페이지 3: 대사 수 조절하기 ───────────────────────────────────
 def page_role_balancer():
     st.header("⚖️ 3) 대사 수 조절하기")
     script = st.session_state.get("current_script") or st.session_state.get("script_balanced") or st.session_state.get("script_final") or st.session_state.get("script_raw","")
@@ -836,7 +886,7 @@ def page_role_balancer():
 
         original_script = st.session_state.get("script_raw", script)
 
-        # ── (1) 내용 앵커 준비: 원본 대사의 앞 14줄만 샘플로 고정
+        # (1) 내용 앵커: 원본 대사의 앞 14줄만 샘플로 고정
         orig_lines = [
             ln for ln in clean_script_text(original_script).splitlines()
             if re.match(r"\s*([^:：]+)\s*[:：]\s*(.+)$", ln)
@@ -855,11 +905,10 @@ def page_role_balancer():
             "3) 등장인물은 요청된 목록만 사용. 새 인물 금지.\n"
             "4) 지문(괄호)은 대사 수 계산에서 제외된다.\n"
             "5) 대사는 반드시 인물의 감정/상황/관계를 드러내는 **구체적이고 자연스러운 문장**이어야 한다.\n"
-            "6) 같은 말이나 의미 없는 반복(예: '음...', '...', '아...')으로 줄 수를 채우지 말라.\n"
+            "6) 같은 말 반복·의미 없는 반복(예: '음...', '...', '아...')으로 줄 수를 채우지 말라.\n"
             "7) 기승전결을 유지·개선하고, 장면 전환은 짧은 연결 문장으로 자연스럽게 처리하라."
         )
 
-        # ── (2) 사용자 프롬프트: 앵커 고정 + 목표 줄수 고지
         user_prompt = f"""
 원본 대본:
 {original_script}
@@ -907,7 +956,7 @@ def page_role_balancer():
             m = re.search(r"<COUNTS>\s*(\{.*?\})\s*</COUNTS>", txt, flags=re.S)
             body = re.sub(r"^.*?</COUNTS>\s*\n?", "", txt, flags=re.S) if m else txt
 
-            # ── (3) 역할 잠금 강화: 허용 인물 외는 지문으로 강등
+            # 역할 잠금 강화: 허용 인물 외는 지문으로 강등
             allowed = set(roles)
             filtered_lines = []
             for line in clean_script_text(body).splitlines():
@@ -960,7 +1009,7 @@ def page_role_balancer():
             })
 
         if final_script is None:
-            loading_placeholder.warning("LLM이 목표 줄 수/내용을 100% 맞추지 못해, 안전 후처리를 적용합니다.")
+            loading_placeholder.warning("LLM이 목표 줄 수/품질을 100% 맞추지 못했습니다. 안전 후처리를 적용합니다.")
             body_after = fallback_hard_adjust(body, roles, targets_dict)
             final_script = body_after
 
@@ -968,7 +1017,7 @@ def page_role_balancer():
         st.session_state["current_script"] = final_script
 
         loading_placeholder.empty()
-        st.success("✅ 재분배 완료! (줄 수 정확 + 내용 앵커 유지 + 역할 잠금 강화)")
+        st.success("✅ 재분배 완료! (줄 수 정확 + 내용 앵커 유지 + 역할 잠금 + 자연스러운 보강/축약)")
         st.rerun()
 
 # ───────── 페이지 4: 소품·무대·의상 ─────────────────────────────────
@@ -990,9 +1039,9 @@ def page_stage_kits():
             st.markdown(res or "(생성 실패)")
             st.session_state["next_step_hint"] = "체크리스트 완성! 다음 단계로 이동하세요."
 
-# ───────── 페이지 5: AI 대본 연습 ──────────────────────────────────
+# ───────── 페이지 5: AI 대본 연습 ────────────────────────────────
 def page_rehearsal_partner():
-    st.header("🎙️ 5) AI 대본 연습 — 줄 단위(한 번 클릭→자동 분석)")
+    st.header("🎙️ 5) AI 대본 연습 — 줄 단위 STT(REST, 한 번 클릭→자동 분석)")
 
     script = st.session_state.get("script_final") or st.session_state.get("script_balanced") or st.session_state.get("script_raw","")
     if not script:
@@ -1017,18 +1066,7 @@ def page_rehearsal_partner():
         key="tts_voice_label_safe",
         help="각 목소리는 나이대와 특성이 표시되어 있어요. 역할에 맞는 목소리를 선택해보세요!"
     )
-    if voice_label:
-        voice_descriptions = {
-            "민준 (남성, 따뜻하고 친근한 목소리)": "🎭 **따뜻하고 친근한 목소리** - 선생님이나 부모님 역할에 적합해요!",
-            "현우 (남성, 차분하고 신뢰감 있는 목소리)": "🎭 **차분하고 신뢰감 있는 목소리** - 의사나 경찰관 같은 전문직 역할에 좋아요!",
-            "지호 (남성, 활기차고 밝은 목소리)": "🎭 **활기차고 밝은 목소리** - 친구나 동생 역할에 어울려요!",
-            "지민 (여성, 부드럽고 친절한 목소리)": "🎭 **부드럽고 친절한 여성 목소리** - 친절한 선생님이나 언니 역할에 어울려요! ✨",
-            "소연 (여성, 귀엽고 명랑한 목소리)": "🎭 **귀엽고 명랑한 여성 목소리** - 귀여운 친구나 동생 역할에 최고예요! ✨",
-            "하은 (여성, 차분하고 우아한 목소리)": "🎭 **차분하고 우아한 여성 목소리** - 우아한 공주나 여왕 역할에 어울려요! ✨",
-            "민지 (여성, 밝고 경쾌한 목소리)": "🎭 **밝고 경쾌한 여성 목소리** - 활발한 친구나 운동선수 역할에 어울려요! ✨"
-        }
-        st.success(f"✅ **선택된 목소리**: {voice_label}")
-        st.info(voice_descriptions.get(voice_label, "멋진 목소리네요!"))
+    st.success(f"✅ **선택된 목소리**: {voice_label}")
 
     my_role = st.selectbox("내 역할(실시간)", roles, key="role_live")
     if "previous_role" not in st.session_state:
