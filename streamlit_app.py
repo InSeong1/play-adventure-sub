@@ -270,6 +270,7 @@ hr { border-color: var(--accent); }
 section[data-testid="stSidebar"] {
     background-color: var(--card) !important;
     color: var(--ink) !important;
+    width: 300px !important;
 }
 
 section[data-testid="stSidebar"] .stMarkdown {
@@ -319,6 +320,19 @@ section[data-testid="stSidebar"] .stMarkdown {
     background-color: var(--card) !important;
     color: var(--ink) !important;
     border-color: var(--accent) !important;
+}
+
+/* 사이드바 radio 버튼 구분선 */
+.stRadio > div > div > label:nth-child(2) {
+    border-top: 2px solid var(--accent) !important;
+    margin-top: 10px !important;
+    padding-top: 10px !important;
+}
+
+.stRadio > div > div > label:nth-child(4) {
+    border-top: 2px solid var(--accent) !important;
+    margin-top: 10px !important;
+    padding-top: 10px !important;
 }
 </style>
 """
@@ -1391,7 +1405,7 @@ def main():
     st.set_page_config("연극용의 둥지", "🐉", layout="wide")
     st.markdown(PASTEL_CSS, unsafe_allow_html=True)
     st.title("🐉 연극용의 둥지 — 연극 용을 성장시켜요!")
-    st.subheader("연극 용과 함께 완성도 있는 연극을 완성하고 연습해보자!")
+    st.subheader("연극 용과 함께 완성도 있는 연극을 완성하고 연습해 보자!")
 
     if "current_page" not in st.session_state:
         st.session_state["current_page"]="📥 1) 대본 등록"
@@ -1405,7 +1419,12 @@ def main():
     }
 
     #sidebar_status()
-    sel = st.sidebar.radio("메뉴", list(pages.keys()), index=list(pages).index(st.session_state["current_page"]), key="nav_radio")
+    
+    # 모든 페이지를 하나의 radio로 관리하되 시각적 구분을 위해 CSS 사용
+    all_pages = list(pages.keys())
+    sel = st.sidebar.radio("메뉴", all_pages, 
+                          index=all_pages.index(st.session_state["current_page"]), 
+                          key="nav_radio")
     st.session_state["current_page"]=sel
 
     if st.sidebar.button("전체 초기화", key="btn_reset_all"):
@@ -1416,4 +1435,3 @@ def main():
 
 if __name__=="__main__":
     main()
-
