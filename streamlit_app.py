@@ -736,7 +736,7 @@ def fallback_hard_adjust(script: str, roles: List[str], targets: Dict[str, int])
 
 # ───────── 페이지 1: 대본 등록/입력 ──────────────────────────────
 def page_script_input():
-    st.image("assets/dragon_intro.png", use_column_width=True)
+    st.image("assets/dragon_intro.png", use_container_width=True)
     st.header("📥 1) 대본 등록")
     c1,c2 = st.columns(2)
     with c1:
@@ -1120,7 +1120,7 @@ def page_rehearsal_partner():
             st.success("✅ 종합 피드백 생성 완료!")
             st.markdown(feed or "(피드백 실패)")
             st.balloons()
-            st.image("assets/dragon_end.png", use_column_width=True)
+            st.image("assets/dragon_end.png", use_container_width=True)
             st.markdown("🐉 **이제 연극 용이 모두 성장했어요!** 다시 돌아가서 연극 대모험을 완료해보세요! 🎭✨")
             st.session_state["next_step_hint"] = "🎉 연극 연습 완료! 새로운 모험을 시작해보세요!"
 
