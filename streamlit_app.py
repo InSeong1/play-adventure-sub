@@ -474,23 +474,25 @@ def tts_speak_line(text: str, voice_label: str) -> Tuple[str, Optional[bytes]]:
         audio = r.content
         # 목소리별 톤 보정 (성별과 특성 고려)
         if "여성" in voice_label:
-            if "지민" in voice_label:
-                audio = _pitch_shift_mp3(audio, +2.5)
-            elif "소연" in voice_label:
-                audio = _pitch_shift_mp3(audio, +3.0)
-            elif "하은" in voice_label:
-                audio = _pitch_shift_mp3(audio, +2.0)
-            elif "민지" in voice_label:
-                audio = _pitch_shift_mp3(audio, +2.8)
+            # 모든 여성 목소리를 더 여성스럽게 조정
+            if "지민" in voice_label:  # 부드럽고 친절한 목소리
+                audio = _pitch_shift_mp3(audio, +2.5)  # 더 부드럽고 여성스럽게
+            elif "소연" in voice_label:  # 귀엽고 명랑한 목소리
+                audio = _pitch_shift_mp3(audio, +3.0)  # 더 귀엽고 높은 톤
+            elif "하은" in voice_label:  # 차분하고 우아한 목소리
+                audio = _pitch_shift_mp3(audio, +2.0)  # 우아하고 여성스럽게
+            elif "민지" in voice_label:  # 밝고 경쾌한 목소리
+                audio = _pitch_shift_mp3(audio, +2.8)  # 밝고 경쾌하게
             else:
-                audio = _pitch_shift_mp3(audio, +2.0)
+                audio = _pitch_shift_mp3(audio, +2.0)  # 기본 여성 톤
         elif "남성" in voice_label:
+            # 남성 목소리는 기존 설정 유지
             if "10대" in voice_label:
-                audio = _pitch_shift_mp3(audio, +1.0)
+                audio = _pitch_shift_mp3(audio, +1.0)  # 10대 남성: 살짝 높게
             elif "20대" in voice_label:
-                audio = _pitch_shift_mp3(audio, -0.5)
+                audio = _pitch_shift_mp3(audio, -0.5)  # 20대 남성: 살짝 낮게
             elif "30대" in voice_label:
-                audio = _pitch_shift_mp3(audio, -1.0)
+                audio = _pitch_shift_mp3(audio, -1.0)  # 30대 남성: 낮게
         return speak_text, audio
     except Exception as e:
         st.error(f"TTS 오류: {e}")
@@ -583,7 +585,9 @@ def prompt_session_feedback(turns: List[Dict]) -> str:
             "칭찬/개선점/다음 연습 팁을 간결히 써주세요.\n\n"+json.dumps(turns, ensure_ascii=False, indent=2))
 
 # ───────── 프로소디 분석: WAV 폴백 포함 ────────────────────────────
+
 def _analyze_wav_pure(audio_bytes: bytes, stt_text: str) -> dict:
+    """ffmpeg/librosa 없이도 동작하는 초간단 WAV 분석(16-bit 위주)."""
     try:
         with wave.open(io.BytesIO(audio_bytes), "rb") as wf:
             ch = wf.getnchannels(); sw = wf.getsampwidth(); sr = wf.getframerate(); n = wf.getnframes()
@@ -602,9 +606,11 @@ def _analyze_wav_pure(audio_bytes: bytes, stt_text: str) -> dict:
         dur = len(arr)/sr
         if dur <= 0.0:
             raise RuntimeError("empty audio")
+        # RMS(dBFS)
         mean_sq = sum((x/maxv)*(x/maxv) for x in arr)/len(arr)
         rms = math.sqrt(max(mean_sq, 1e-12))
         rms_db = 20.0*math.log10(rms)
+        # 20ms 창 에너지 → 무음 비율
         win = int(sr*0.02) or 1
         energies = []
         for i in range(0, len(arr), win):
@@ -619,6 +625,7 @@ def _analyze_wav_pure(audio_bytes: bytes, stt_text: str) -> dict:
         else:
             unvoiced = 0.0
         pause_ratio = min(1.0, max(0.0, unvoiced/max(dur,1e-6)))
+        # 속도(음절/초) & 단어/초
         syllables = len([c for c in (stt_text or "") if ('가' <= c <= '힣') or c.isdigit()])
         voiced = max(dur - unvoiced, 1e-6)
         syl_rate = (syllables/voiced) if syllables>0 else None
@@ -640,13 +647,15 @@ def _analyze_wav_pure(audio_bytes: bytes, stt_text: str) -> dict:
         spacing = ("잘 띄어 읽음" if 0.08<=pause_ratio<=0.28 else
                    "보통" if 0.04<=pause_ratio<0.08 or 0.28<pause_ratio<=0.40 else
                    "잘 띄어 읽는 것이 되지 않음")
+        # 톤(개선된 판단 기준)
         if energies:
             rng = (max(energies)-min(energies))
+            # 더 정확한 어조 판단을 위한 다중 기준
             if rng>0.25 and rms_db>-20 and pause_ratio<0.15: tone="화내는 어조"
             elif rng>0.18 and pause_ratio>=0.2 and rms_db>-30: tone="즐거운 어조"
             elif rms_db<-35 and pause_ratio>0.25: tone="슬픈 어조"
             elif rng<0.1 and pause_ratio<0.1: tone="담담한 어조"
-            else: tone="보통 어조"
+            else: tone="보통 어조"  # 애매한 경우를 위한 중간 카테고리
         else:
             tone="담담한 어조"
         return {"speed_label":lab_speed(syl_rate),"volume_label":lab_volume(rms_db),
@@ -659,12 +668,20 @@ def _analyze_wav_pure(audio_bytes: bytes, stt_text: str) -> dict:
                 "syllables_per_sec":None,"wps":None,"rms_db":None,"f0_hz":None,
                 "f0_var":None,"pause_ratio":None}
 
+
 def analyze_prosody(audio_bytes: bytes, stt_text: str) -> dict:
+    """
+    1) librosa(+numpy) 사용 시 정밀 분석
+    2) 실패하면 pydub 경량 분석
+    3) 그래도 실패하면 순수 WAV 폴백(_analyze_wav_pure)
+    """
+    # 1) librosa 경로
     if _lb is not None and _np is not None:
         try:
             y, sr = _lb.load(io.BytesIO(audio_bytes), sr=16000, mono=True)
             if y is None or (hasattr(y, "size") and y.size == 0):
                 raise RuntimeError("empty audio")
+            # 발성 길이
             if _vad:
                 int16 = (y * 32767).astype("int16").tobytes()
                 v = _vad.Vad(2); frame_ms = 20
@@ -707,6 +724,7 @@ def analyze_prosody(audio_bytes: bytes, stt_text: str) -> dict:
                         f0_std = float(_np.nanstd(f0_valid))
                         pitch_desc = ("낮음" if f0_med<140 else "중간" if f0_med<200 else "높음")
                         var_desc   = ("변화 적음" if f0_std<15 else "변화 적당" if f0_std<35 else "변화 큼")
+                        # 더 정확한 어조 판단을 위한 다중 기준
                         if pitch_desc=="높음" and var_desc!="변화 적음" and pause_ratio>=0.15: tone="활기찬/즐거운 어조"
                         elif pitch_desc=="낮음" and var_desc=="변화 적음" and pause_ratio<0.1: tone="담담·낮은 톤"
                         elif var_desc=="변화 큼" and rms_db>-25: tone="감정 기복 큰 어조"
@@ -728,6 +746,7 @@ def analyze_prosody(audio_bytes: bytes, stt_text: str) -> dict:
                     "f0_hz":f0_med,"f0_var":f0_std,"pause_ratio":pause_ratio}
         except Exception:
             pass
+    # 2) pydub 경로
     if AudioSegment is not None:
         try:
             seg = AudioSegment.from_file(io.BytesIO(audio_bytes))
@@ -762,17 +781,20 @@ def analyze_prosody(audio_bytes: bytes, stt_text: str) -> dict:
                 v = seg[i:i+step].dBFS
                 vals.append(-60.0 if v==float("-inf") else v)
             rng = (max(vals)-min(vals)) if vals else 0.0
+            # 더 정확한 어조 판단을 위한 다중 기준
             if rng>20 and rms_dbfs>-20 and pause_ratio<0.15: tone="화내는 어조"
             elif rng>15 and pause_ratio>=0.2 and rms_dbfs>-30: tone="즐거운 어조"
             elif rms_dbfs<-35 and pause_ratio>0.25: tone="슬픈 어조"
             elif rng<10 and pause_ratio<0.1: tone="담담한 어조"
-            else: tone="보통 어조"
+            else: tone="보통 어조"  # 애매한 경우를 위한 중간 카테고리
             return {"speed_label":speed,"volume_label":volume,"tone_label":tone,"spacing_label":spacing,
                     "syllables_per_sec":syl_rate,"wps":wps,"rms_db":rms_dbfs,
                     "f0_hz":None,"f0_var":None,"pause_ratio":pause_ratio}
         except Exception:
             pass
+    # 3) 순수 WAV 폴백
     return _analyze_wav_pure(audio_bytes, stt_text)
+
 
 def _badge(label: str) -> str:
     if label in ("적당함","잘 띄어 읽음") or "활기찬" in label:
@@ -833,244 +855,10 @@ def render_prosody_card(pros: dict):
                     "</div>" +
                     "</div>", unsafe_allow_html=True)
 
-# ==================== GPT 재분배 유틸/검증 (ADD) ====================
-
-FORBIDDEN_PHRASES = [
-    "내 말은", "구체적으로", "정해보자는 거야", "요컨대", "한마디로",
-    "아무튼", "그러니까 이런 거야", "즉", "결론은", "요약하면",
-    "잠깐만, 한 가지 더 생각났어"
-]
-FORBIDDEN_REGEX = re.compile("|".join(map(re.escape, FORBIDDEN_PHRASES)))
-
-def _is_forbidden_line(text: str) -> bool:
-    return bool(FORBIDDEN_REGEX.search(text or ""))
-
-def count_dialogue_lines(script: str, roles: List[str]) -> Dict[str, int]:
-    counts = {r:0 for r in roles}
-    for ln in clean_script_text(script).splitlines():
-        m = re.match(r"\s*([^:：]+)\s*[:：]\s*(.+)$", ln)
-        if not m: 
-            continue
-        who = _normalize_role(m.group(1))
-        if who in counts and not _is_banned_role(who):
-            counts[who] += 1
-    return counts
-
-def _has_bad_consecutives(script: str, roles: List[str]) -> Tuple[bool, int]:
-    last = None
-    idx = 0
-    for ln in clean_script_text(script).splitlines():
-        idx += 1
-        m = re.match(r"\s*([^:：]+)\s*[:：]\s*(.+)$", ln)
-        if not m: 
-            continue
-        who = _normalize_role(m.group(1))
-        if who not in roles or _is_banned_role(who):
-            continue
-        if last == who:
-            return True, idx
-        last = who
-    return False, -1
-
-def _has_unknown_roles(script: str, roles: List[str]) -> Tuple[bool, List[str]]:
-    unknown = set()
-    for ln in clean_script_text(script).splitlines():
-        m = re.match(r"\s*([^:：]+)\s*[:：]\s*(.+)$", ln)
-        if not m: 
-            continue
-        who = _normalize_role(m.group(1))
-        if who not in roles or _is_banned_role(who):
-            unknown.add(who)
-    return (len(unknown) > 0), sorted(list(unknown))
-
-def _has_forbidden_phrase(script: str) -> bool:
-    for ln in clean_script_text(script).splitlines():
-        m = re.match(r"\s*([^:：]+)\s*[:：]\s*(.+)$", ln)
-        if not m: 
-            continue
-        text = m.group(2).strip()
-        if _is_forbidden_line(text):
-            return True
-    return False
-
-def _strip_to_allowed_roles(script: str, roles: List[str]) -> str:
-    out = []
-    allowed = set(roles)
-    for line in clean_script_text(script).splitlines():
-        mm = re.match(r"\s*([^:：]+)\s*[:：]\s*(.+)$", line)
-        if mm:
-            who = _normalize_role(mm.group(1))
-            text = mm.group(2).strip()
-            if who in allowed and not _is_banned_role(who):
-                out.append(f"{who}: {text}")
-            else:
-                out.append(f"({who}가 말하려다 멈춘다: {text})")
-        else:
-            out.append(line)
-    return "\n".join(out)
-
-def _compose_gpt_messages(original_script: str, roles: List[str], targets: Dict[str,int]) -> list:
-    roles_csv = ", ".join(roles)
-    hard_constraints = json.dumps(targets, ensure_ascii=False)
-
-    system_rules = (
-        "너는 초등 연극 대본 편집자다. 반드시 정확한 형식과 줄 수를 지켜라.\n"
-        "출력 규칙:\n"
-        "1) 첫 줄에 <COUNTS>{...}</COUNTS> 형태로 '최종 대사 수(JSON)' 출력. 목표와 정확히 일치해야 함.\n"
-        "2) 두 번째 줄부터는 대본만 출력. 오직 `역할명: 내용` 또는 지문(괄호)만.\n"
-        "3) 등장인물은 요청된 목록만 사용. 새 인물 금지.\n"
-        "4) 지문(괄호)은 대사 수에서 제외.\n"
-        "5) 대사는 상투어·메타발화·반복 금지. 금지어: " + ", ".join(FORBIDDEN_PHRASES) + "\n"
-        "6) 반드시 서로 주고받는 회화 구조(같은 인물이 연속으로 말하지 않음). 줄 수 차이로 불가피하면 그 구간만 1회 허용.\n"
-               # 교대 발화 강조
-        "7) 줄 수를 맞추되, 추가/삭제 시 앞뒤 맥락과 성격에 어울리도록 자연스럽게 수정한다."
-    )
-
-    user_prompt = f"""
-원본 대본:
-{original_script}
-
-등장인물(고정): {roles_csv}
-
-목표 대사 수(JSON):
-{hard_constraints}
-
-요청:
-- 각 등장인물의 '대사 줄 수'를 목표와 정확히 일치.
-- 대사는 반드시 서로 주고받는 식으로 전개(연속 발화 금지; 불가피한 구간만 1회 허용).
-- 상투적/메타/교과 설명체/반복 금지. 금지어는 절대 쓰지 말 것.
-- 내용과 상황은 원본의 주제·배경·관계에 맞게 자연스럽게 보강하거나 요약.
-
-출력 예시(형식만 참고):
-<COUNTS>{{"민수":7,"아버지":3,"탐관오리":5}}</COUNTS>
-민수: ...
-아버지: ...
-(무대 전환)
-탐관오리: ...
-"""
-    return [
-        {"role": "system", "content": system_rules},
-        {"role": "user", "content": user_prompt},
-    ]
-
-def fallback_hard_adjust(body: str, roles: List[str], targets: Dict[str,int]) -> str:
-    """
-    마지막 안전 보정: 초과는 지문화, 부족은 간단한 자연스러운 한 줄 보강.
-    """
-    def _last_ctx(lines, i): 
-        return "\n".join(lines[max(0,i-4):i])
-
-    lines = clean_script_text(body).splitlines()
-    counts = count_dialogue_lines(body, roles)
-
-    # 초과 → 뒤쪽에서 의미 약한 라인을 지문화
-    for r in roles:
-        while counts.get(r,0) > targets[r]:
-            idx = -1; weak = 1e9
-            for i in range(len(lines)-1, -1, -1):
-                m = re.match(rf"\s*{re.escape(r)}\s*[:：]\s*(.+)$", lines[i])
-                if not m: continue
-                text = m.group(1).strip()
-                score = 0
-                if len(text)<=8: score += 2
-                if re.search(r"[.?!]$",text) is None: score += 1
-                if _is_forbidden_line(text): score -= 5
-                if score < weak: weak=score; idx=i
-            if idx==-1: break
-            txt = re.sub(rf"^\s*{re.escape(r)}\s*[:：]\s*","",lines[idx]).strip()
-            lines[idx] = f"({r}가 말을 아끼며 눈짓한다: {txt})"
-            counts[r] -= 1
-
-    # 부족 → 간단 보강
-    for r in roles:
-        while counts.get(r,0) < targets[r]:
-            # 가능한 위치: 서로 다른 인물 사이
-            inserted = False
-            for i in range(len(lines)-1, 0, -1):
-                m1 = re.match(r"\s*([^:：]+)\s*[:：]", lines[i-1] or "")
-                m2 = re.match(r"\s*([^:：]+)\s*[:：]", lines[i] or "")
-                if not m1 or not m2: continue
-                if _normalize_role(m1.group(1)) != r and _normalize_role(m2.group(1)) != r:
-                    ctx = _last_ctx(lines, i)
-                    # 짧은 자연 대사
-                    add = f"{r}: 좋아, 그렇게 하자."
-                    if re.search(r"(걱정|조심|문제|위험)", ctx): add = f"{r}: 맞아, 그 부분은 조심하자."
-                    elif re.search(r"(좋아|재미|기대|잘했)", ctx): add = f"{r}: 나도 기대돼! 함께 해보자."
-                    lines.insert(i, add)
-                    counts[r] += 1
-                    inserted = True
-                    break
-            if not inserted:
-                lines.append(f"{r}: 알겠어. 계속 이어가자.")
-                counts[r] += 1
-
-    return "\n".join(lines)
-
-def rebalance_with_gpt(original_script: str, roles: List[str], targets: Dict[str,int]) -> str:
-    """
-    GPT로 재분배 → 검증 → 수정요구 루프(최대 5회).
-    모든 검사(줄수/교대/금지어/새 인물)를 통과하면 반환.
-    실패 시 fallback_hard_adjust로 보정.
-    """
-    msgs = _compose_gpt_messages(original_script, roles, targets)
-    last_body = ""
-    for attempt in range(1, 6):
-        out = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=msgs,
-            temperature=0.4,
-            max_tokens=2400,
-        ).choices[0].message.content.strip()
-
-        # header 분리
-        m = re.search(r"<COUNTS>\s*(\{.*?\})\s*</COUNTS>", out, flags=re.S)
-        body = re.sub(r"^.*?</COUNTS>\s*\n?", "", out, flags=re.S) if m else out
-        body = _strip_to_allowed_roles(body, roles)
-
-        # 검증
-        counts = count_dialogue_lines(body, roles)
-        counts_ok = all(counts.get(r,0) == targets[r] for r in roles)
-        has_seq_break, _ = _has_bad_consecutives(body, roles)
-        has_unknown, _ = _has_unknown_roles(body, roles)
-        bad_phrase = _has_forbidden_phrase(body)
-
-        if counts_ok and (not has_seq_break) and (not has_unknown) and (not bad_phrase):
-            return body  # ✅ 완벽
-
-        # 수정 사유를 만들어 피드백
-        reasons = []
-        if not counts_ok:
-            reasons.append("줄 수 불일치: " + ", ".join([f"{r}:{counts.get(r,0)}→{targets[r]}" for r in roles if counts.get(r,0)!=targets[r]]))
-        if has_seq_break:
-            reasons.append("교대 위반(같은 인물 연속 발화 금지)")
-        if has_unknown:
-            reasons.append("새 인물 금지 위반")
-        if bad_phrase:
-            reasons.append("금지어/상투적 반복 사용")
-
-        msgs.append({"role":"assistant","content":out})
-        msgs.append({"role":"user","content":f"""아래 문제를 모두 고쳐 다시 출력하세요.
-
-- {"; ".join(reasons)}
-
-규칙 재확인:
-- <COUNTS>{{...}}</COUNTS> 헤더 필수(목표와 정확히 일치)
-- 이후는 대본만 (역할명: 내용 또는 지문)
-- 같은 인물 연속 발화 금지(불가피한 경우 1회만)
-- 금지어/상투적 반복 금지
-- 새 인물 금지
-"""})
-        last_body = body
-
-    # 루프 종료: 안전 보정
-    try:
-        return fallback_hard_adjust(last_body, roles, targets)
-    except Exception:
-        return last_body
-
 # ───────── 페이지 1: 대본 등록/입력 ──────────────────────────────
 def page_script_input():
-    st.image("assets/dragon_intro.png", use_container_width=True)
+    # 용 소개 이미지 추가
+    st.image("assets/dragon_intro.png", width='stretch')
     st.header("📥 1) 대본 등록")
     c1,c2 = st.columns(2)
     with c1:
@@ -1106,9 +894,14 @@ def page_feedback_script():
                 ).choices[0].message.content
                 st.session_state["script_feedback"]=fb
                 st.success("✅ 피드백 생성 완료!")
+                
+                # 오른쪽으로 이동 안내
                 if not st.session_state.get("script_final"):
                     st.info("💡 오른쪽의 '✨ 피드백 반영하여 대본 생성하기' 버튼을 눌러보세요!")
+                    
+                # 왼쪽 메뉴 다음 단계 안내
                 st.session_state["next_step_hint"] = "피드백에 맞추어 대본이 완성되면 다음 단계로 이동하세요."
+                
     with c2:
         if st.button("✨ 피드백 반영하여 대본 생성하기", key="btn_make_final"):
             with st.spinner("✨ 대본을 생성하고 있습니다..."):
@@ -1131,6 +924,8 @@ def page_feedback_script():
                 ).choices[0].message.content
                 st.session_state["script_final"] = res
                 st.success("🎉 대본 생성 완료!")
+                
+                # 왼쪽 메뉴 다음 단계 안내
                 st.session_state["next_step_hint"] = "대본 생성 완료! 피드백을 반영하여 수정을 완료한 후 다음 단계로 이동하세요."
 
     st.divider()
@@ -1140,13 +935,19 @@ def page_feedback_script():
     if st.session_state.get("script_final"):
         st.subheader("🤖 AI 추천 대본 (수정 가능)")
         st.markdown("AI가 추천한 대본입니다. 상세 피드백을 참고하여 수정해보아요!")
+        
+        # 수정 가능한 코드 블록
         st.code(st.session_state["script_final"], language="text")
+        
+        # 수정을 위한 새로운 텍스트 영역
         edited_script = st.text_area(
             "대본 수정하기",
             value=st.session_state["script_final"],
             height=300,
             key="script_editor"
         )
+        
+        # AI 생성 대본을 자동으로 원본 등장인물만 필터링
         original_roles = extract_roles(st.session_state.get("script_raw", ""))
         filtered_lines = []
         for line in clean_script_text(st.session_state["script_final"]).splitlines():
@@ -1156,9 +957,14 @@ def page_feedback_script():
                 if character in original_roles:
                     filtered_lines.append(line)
             else:
+                # 지문이나 장면 설명은 그대로 유지
                 filtered_lines.append(line)
+        
+        # 필터링된 대본으로 자동 업데이트
         filtered_script = "\n".join(filtered_lines)
         st.session_state["script_final"] = filtered_script
+        
+        # 수정 완료 버튼
         if st.button("✅ 수정 완료", key="btn_save_script"):
             st.session_state["script"] = edited_script
             st.success("✅ 대본이 저장되었습니다!")
@@ -1172,52 +978,179 @@ def page_role_balancer():
     seq = build_sequence(script); roles = extract_roles(script)
     if not roles: st.info("‘이름: 내용’ 형식이어야 역할을 인식해요."); return
 
-    # 현재 대사 수
+    # 현재 대사 수 계산 (재분배된 스크립트가 있으면 그것을 우선 사용)
     if st.session_state.get("script_balanced"):
+        # 재분배된 스크립트로 계산
         balanced_seq = build_sequence(st.session_state["script_balanced"])
         counts = {r:0 for r in roles}
         for ln in balanced_seq: counts[ln["who"]]+=1
+        #st.subheader("현재 대사 수 (재분배 후)")
+        # counts를 session_state에 저장하여 다음 재분배 시 사용
         st.session_state["current_counts"] = counts
     else:
+        # 원본 스크립트로 계산
         counts = {r:0 for r in roles}
         for ln in seq: counts[ln["who"]]+=1
+        #st.subheader("현재 대사 수")
+        # counts를 session_state에 저장
         st.session_state["current_counts"] = counts
     
-    # 현재 대본
+    # 현재 대본을 전체 너비로 표시 (text_area 사용)
     st.subheader("📜 현재 대본")
     current_script = st.session_state.get("script_balanced") or script
-    st.code(current_script, language="text", height=500)
+    st.code(current_script, language="text",height=500)
     
+    # 두 개의 컬럼으로 나누기
     col1, col2 = st.columns(2)
+    
     with col1:
         st.subheader("📊 현재 대사 수")
+        st.markdown("생성된 대본의 줄 수를 알려줘요.")
+        # counts를 깔끔하게 표시 (중괄호 제거)
         for role, count in counts.items():
             st.write(f"**{role}**: {count}줄")
+    
     with col2:
         st.subheader("🎯 목표 대사 수 설정")
-        st.markdown("인물별 줄 수를 원하는 값으로 수정하세요.")
+        st.markdown("대사의 양을 골고루 분배해 보아요.")
         targets={}
         for r in roles:
+            # 재분배 후에는 업데이트된 counts를 기본값으로 사용
             targets[r]=st.number_input(f"{r} 목표", min_value=0, value=counts[r], step=1, key=f"tgt_{r}")
 
+    # 재분배 버튼을 전체 너비로 배치
     st.markdown("---")
-    if st.button("🔁 재분배하기", key="btn_rebalance", use_container_width=True):
-        loading = st.empty()
-        loading.info("⚖️ GPT로 자연스럽게 재분배 중...")
+    if st.button("🔁 재분배하기", key="btn_rebalance", width='stretch'):
+        # 로딩 상태 표시
+        loading_placeholder = st.empty()
+        loading_placeholder.info("⚖️ 역할을 재분배하고 있습니다...")
+        
+        # 완전히 새로운 대본 생성 방식으로 변경
+        # 원본 스크립트를 기반으로 목표 대사 수에 맞게 완전히 새로 생성
+        original_script = st.session_state.get("script_raw", script)
+        
+        # AI에게 완전히 새로운 대본 생성을 요청
+        rebalance_prompt = f"""
+당신은 초등학교 5~6학년 학생이 쓴 연극 극본을 읽고, 학생이 정한 목표 대사 수에 맞게 대본을 완전히 새로 작성해주는 선생님 역할을 합니다.
 
-        base_script = st.session_state.get("current_script") or st.session_state.get("script_balanced") \
-                      or st.session_state.get("script_final") or st.session_state.get("script_raw","")
-        roles_list = extract_roles(base_script)
-        target_dict = {r: int(st.session_state.get(f"tgt_{r}", 0)) for r in roles_list}
+원본 대본:
+{original_script}
 
-        final_script = rebalance_with_gpt(base_script, roles_list, target_dict)
+목표 대사 수:
+{chr(10).join([f"- {role}: {targets[role]}줄" for role in roles])}
 
-        st.session_state["script_balanced"] = final_script
-        st.session_state["current_script"] = final_script
+요구사항:
+1. 원본 대본의 내용과 흐름을 유지하되, 목표 대사 수에 정확히 맞춰 완전히 새로 작성하세요
+2. 등장인물은 원본에 있던 {', '.join(roles)}만 사용하세요
+3. 각 등장인물의 대사 수를 목표에 정확히 맞춰주세요
+4. 지문(괄호)은 적절히 포함하되, 대사 수 계산에는 포함하지 마세요
+5. 초등학생이 이해하기 쉬운 자연스러운 대사로 작성하세요
+6. 기승전결이 명확한 완성된 연극 대본으로 만들어주세요
 
-        loading.empty()
-        st.success("✅ 재분배 완료! (정확한 줄 수 + 자연스러운 주고받기)")
-        st.rerun()
+예시 1 – 짧은 대본을 늘리기
+입력 대본:
+(무대: 교실)
+민수: 오늘은 너무 피곤하다.
+지혜: 왜 그래?
+민수: 숙제가 많았어.
+목표 대사 수: 7줄
+
+출력 예시:
+(무대: 교실, 아침 햇살이 들어온다)
+민수: 오늘은 너무 피곤하다.
+지혜: 왜 그래? 어제 늦게 잤어?
+민수: 응, 숙제가 많아서 늦게까지 했어.
+지혜: 아이고, 그럼 수업 시간에 졸리겠다.
+민수: 맞아, 나 진짜 걱정이야.
+지혜: 그래도 힘내! 내가 옆에서 깨워줄게.
+민수: 고마워! 조금 기운이 나는 것 같아.
+
+예시 2 – 긴 대본을 줄이기
+입력 대본:
+(무대: 운동장)
+철수: 축구하자!
+영희: 난 달리기가 하고 싶어.
+철수: 그럼 달리기 시합 어때?
+영희: 좋아, 하지만 먼저 준비 운동하자.
+철수: 그래, 스트레칭부터 하자.
+영희: 자, 하나 둘, 하나 둘!
+철수: 이제 준비됐어?
+영희: 응, 그럼 시작!
+철수: 좋아, 달려!
+목표 대사 수: 6줄
+
+출력 예시:
+(무대: 운동장)
+철수: 축구하자!
+영희: 난 달리기가 하고 싶어.
+철수: 그럼 달리기 시합 어때?
+영희: 좋아! 준비됐어?
+철수: 응, 그럼 시작하자!
+(둘이 함께 달리기 시합을 한다)
+
+예시 3 – 결말 보완하기
+입력 대본:
+(무대: 숲속)
+토끼: 오늘 소풍 오길 잘했어!
+다람쥐: 맞아, 공기도 상쾌해.
+토끼: 근데 배고프다…
+다람쥐: 간식 잊어버렸어.
+토끼: 아쉽다.
+목표 대사 수: 8줄
+
+출력 예시:
+(무대: 숲속, 새소리가 들린다)
+토끼: 오늘 소풍 오길 잘했어!
+다람쥐: 맞아, 공기도 상쾌해.
+토끼: 그런데 배가 고프네.
+다람쥐: 아차, 간식을 두고 왔어.
+토끼: 괜찮아, 대신 열매를 찾아보자.
+다람쥐: 그래, 저기 빨간 열매 보여?
+토끼: 응! 덕분에 더 재미있는 소풍이 됐어.
+
+완전히 새로운 대본을 작성해주세요:
+"""
+        
+        try:
+            ai_response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role":"user","content":rebalance_prompt}],
+                temperature=0.6, max_tokens=2000
+            )
+            new_script = ai_response.choices[0].message.content.strip()
+            
+            # 생성된 대본에서 원본 등장인물만 필터링
+            filtered_lines = []
+            for line in clean_script_text(new_script).splitlines():
+                m = re.match(r"\s*([^:：]+)\s*[:：]\s*(.+)$", line)
+                if m:
+                    character = _normalize_role(m.group(1))
+                    if character in roles:
+                        filtered_lines.append(line)
+                else:
+                    # 지문이나 장면 설명은 그대로 유지
+                    filtered_lines.append(line)
+            
+            # 필터링된 대본으로 완전 교체
+            st.session_state["script_balanced"] = "\n".join(filtered_lines)
+            
+            # 로딩 메시지 제거
+            loading_placeholder.empty()
+            st.success("✅ 재분배 완료!")
+            
+            # 재분배된 스크립트를 현재 script로 설정하여 즉시 반영
+            st.session_state["current_script"] = st.session_state["script_balanced"]
+            
+            # 페이지 새로고침하여 대본이 즉시 업데이트되도록 함
+            st.rerun()
+            
+        except Exception as e:
+            loading_placeholder.empty()
+            st.error(f"재분배 중 오류가 발생했습니다: {e}")
+            return
+        
+        # 왼쪽 메뉴 다음 단계 안내
+        st.session_state["next_step_hint"] = "역할 재분배 완료! 다음 단계로 이동하세요."
 
 # ───────── 페이지 4: 소품·무대·의상 ─────────────────────────────────
 def page_stage_kits():
@@ -1236,6 +1169,8 @@ def page_stage_kits():
             st.session_state["stage_kits"] = res
             st.success("✅ 목록 생성 완료!")
             st.markdown(res or "(생성 실패)")
+            
+            # 왼쪽 메뉴 다음 단계 안내
             st.session_state["next_step_hint"] = "체크리스트 완성! 다음 단계로 이동하세요."
 
 # ───────── 페이지 5: AI 대본 연습 ────────────────────────────────
@@ -1250,14 +1185,18 @@ def page_rehearsal_partner():
     if not seq or not roles:
         st.info("‘이름: 내용’ 형식이어야 리허설 가능해요."); return
 
+    # 상태키
     st.session_state.setdefault("duet_cursor", 0)
     st.session_state.setdefault("duet_turns", [])
     st.session_state.setdefault("auto_done_token", None)
 
+    # 텍스트 분석 포함 여부(기본: 포함)
     want_metrics = st.checkbox("텍스트 분석 포함(말속도·크기·어조·띄어읽기)", value=True, key="ck_metrics")
 
+    # 파트너 TTS 보이스
     st.markdown("**🎭 상대역 음성 선택**")
     st.markdown("연극에 적합한 목소리를 선택해보세요!")
+    
     voice_label = st.selectbox(
         "상대역 음성 선택", 
         VOICE_KR_LABELS_SAFE, 
@@ -1265,7 +1204,10 @@ def page_rehearsal_partner():
         key="tts_voice_label_safe",
         help="각 목소리는 나이대와 특성이 표시되어 있어요. 역할에 맞는 목소리를 선택해보세요!"
     )
+    
+    # 선택된 목소리 정보 표시
     if voice_label:
+        # 목소리별 특성 설명
         voice_descriptions = {
             "민준 (남성, 따뜻하고 친근한 목소리)": "🎭 **따뜻하고 친근한 목소리** - 선생님이나 부모님 역할에 적합해요!",
             "현우 (남성, 차분하고 신뢰감 있는 목소리)": "🎭 **차분하고 신뢰감 있는 목소리** - 의사나 경찰관 같은 전문직 역할에 좋아요!",
@@ -1275,10 +1217,32 @@ def page_rehearsal_partner():
             "하은 (여성, 차분하고 우아한 목소리)": "🎭 **차분하고 우아한 여성 목소리** - 우아한 공주나 여왕 역할에 어울려요! ✨",
             "민지 (여성, 밝고 경쾌한 목소리)": "🎭 **밝고 경쾌한 여성 목소리** - 활발한 친구나 운동선수 역할에 어울려요! ✨"
         }
+        
         st.success(f"✅ **선택된 목소리**: {voice_label}")
         st.info(voice_descriptions.get(voice_label, "멋진 목소리네요!"))
 
+    # 이동 컨트롤
+    # c1, c2, c3 = st.columns(3)
+    # with c1:
+    #     if st.button("⏮️ 처음부터 다시", key="restart_all"):
+    #         st.session_state["duet_cursor"]=0
+    #         st.session_state["duet_turns"]=[]; st.session_state["auto_done_token"]=None
+    #         if hasattr(st, "rerun"): st.rerun()
+    # with c2:
+    #     if st.button("⬅️ 이전 줄로 이동", key="prev_line"):
+    #         st.session_state["duet_cursor"]=max(0, st.session_state["duet_cursor"]-1)
+    #         st.session_state["auto_done_token"]=None
+    #         if hasattr(st, "rerun"): st.rerun()
+    # with c3:
+    #     if st.button("➡️ 다음 줄 이동", key="next_line"):
+    #         st.session_state["duet_cursor"]=min(len(seq), st.session_state["duet_cursor"]+1)
+    #         st.session_state["auto_done_token"]=None
+    #         if hasattr(st, "rerun"): st.rerun()
+
+    # 내 역할
     my_role = st.selectbox("내 역할(실시간)", roles, key="role_live")
+    
+    # 역할이 변경되면 자동으로 페이지 새로고침
     if "previous_role" not in st.session_state:
         st.session_state["previous_role"] = my_role
     elif st.session_state["previous_role"] != my_role:
@@ -1286,6 +1250,7 @@ def page_rehearsal_partner():
         st.success(f"✅ 역할이 '{my_role}'로 변경되었습니다!")
         st.rerun()
 
+    # 현재 줄
     cur_idx = st.session_state.get("duet_cursor", 0)
     if cur_idx >= len(seq):
         st.success("🎉 끝까지 진행했습니다. 이제 연습 종료 & 종합 피드백을 받아보세요!")
@@ -1294,11 +1259,16 @@ def page_rehearsal_partner():
         cur_line = seq[cur_idx]
         st.markdown(f"#### 현재 줄 #{cur_idx+1}: **{cur_line['who']}** — {cur_line['text']}")
 
+        # (내 차례)
         if cur_line["who"] == my_role:
             st.info("내 차례예요. 아래 **마이크 버튼을 한 번만** 눌러 말하고, 버튼이 다시 바뀌면 자동 분석이 시작됩니다.")
             audio_bytes = None
             if audio_recorder is not None:
+                # 녹음 상태에 따른 텍스트 변경
+                #recording_status = "🎙️ 녹음중" if st.session_state.get(f"recording_{cur_idx}", False) else "🎤 녹음 준비"
+                #st.markdown(f"**{recording_status}**")
                 st.markdown("💡 **마이크 아이콘을 클릭하여 녹음 시작/중지**")
+                
                 audio_bytes = audio_recorder(
                     text="🎤 말하고 인식(자동 분석)", sample_rate=16000,
                     pause_threshold=2.0, key=f"audrec_one_{cur_idx}"
@@ -1307,6 +1277,7 @@ def page_rehearsal_partner():
                 st.warning("audio-recorder-streamlit 패키지가 필요합니다. `pip install audio-recorder-streamlit`")
 
             if audio_bytes:
+                # 상태머신: 인식중 → 분석중 → 완료
                 with st.status("🎧 인식 중...", expanded=True) as s:
                     token = hashlib.sha256(audio_bytes).hexdigest()[:16]
                     if st.session_state.get("auto_done_token") != (cur_idx, token):
@@ -1347,13 +1318,14 @@ def page_rehearsal_partner():
                 if st.button("⬅️ 이전 줄로 이동", key=f"prev_live_{cur_idx}"):
                     st.session_state["duet_cursor"] = max(0, cur_idx-1)
                     st.session_state["auto_done_token"]=None
-                    st.rerun()
+                    if hasattr(st, "rerun"): st.rerun()
             with cB:
                 if st.button("➡️ 다음 줄 이동", key=f"next_live_{cur_idx}"):
                     st.session_state["duet_cursor"] = min(len(seq), cur_idx+1)
                     st.session_state["auto_done_token"]=None
-                    st.rerun()
+                    if hasattr(st, "rerun"): st.rerun()
 
+    # (상대역 차례)
         else:
             st.info("지금은 상대역 차례예요. ‘🔊 파트너 음성 듣기’로 듣거나, 이전/다음 줄로 이동할 수 있어요.")
             if st.button("🔊 파트너 음성 듣기", key=f"partner_say_live_cur_{cur_idx}"):
@@ -1367,13 +1339,14 @@ def page_rehearsal_partner():
                 if st.button("⬅️ 이전 줄로 이동", key=f"prev_live2_{cur_idx}"):
                     st.session_state["duet_cursor"] = max(0, cur_idx-1)
                     st.session_state["auto_done_token"]=None
-                    st.rerun()
+                    if hasattr(st, "rerun"): st.rerun()
             with cB:
                 if st.button("➡️ 다음 줄 이동", key=f"next_live2_{cur_idx}"):
                     st.session_state["duet_cursor"] = min(len(seq), cur_idx+1)
                     st.session_state["auto_done_token"]=None
-                    st.rerun()
+                    if hasattr(st, "rerun"): st.rerun()
 
+    # 세션 종합 피드백
     if st.button("🏁 연습 종료 & 종합 피드백", key="end_feedback"):
         with st.spinner("🏁 종합 피드백을 생성하고 있습니다..."):
             feed = client.chat.completions.create(
@@ -1384,9 +1357,23 @@ def page_rehearsal_partner():
             st.session_state["session_feedback"] = feed
             st.success("✅ 종합 피드백 생성 완료!")
             st.markdown(feed or "(피드백 실패)")
+            
+            # 모험 마무리 안내
             st.balloons()
-            st.image("assets/dragon_end.png", use_container_width=True)
-            st.markdown("🐉 **이제 연극 용이 모두 성장했어요!**  다시 돌아가서 연극 대모험을 완료해보세요! 🎭✨")
+            st.markdown("""
+            🎉 **축하합니다! 연극 연습을 성공적으로 마쳤습니다!**
+
+            """)
+            
+            # 용 완성 이미지와 대사 추가
+            st.image("assets/dragon_end.png", width='stretch')
+            st.markdown("""
+            🐉 **이제 연극 용이 모두 성장했어요!** 
+            
+            다시 돌아가서 연극 대모험을 완료해보세요! 🎭✨
+            """)
+            
+            # 왼쪽 메뉴 초기화 안내
             st.session_state["next_step_hint"] = "🎉 연극 연습 완료! 새로운 모험을 시작해보세요!"
 
 # ───────── 사이드바 상태 ─────────────────────────────────────────
@@ -1398,13 +1385,18 @@ def sidebar_status():
     st.sidebar.markdown(f"- OpenAI TTS: {badge(bool(OPENAI_API_KEY))}")
     st.sidebar.markdown(f"- CLOVA STT: {badge(bool(CLOVA_SPEECH_SECRET))}")
     st.sidebar.markdown(f"- OCR(선택): {badge(bool(NAVER_CLOVA_OCR_URL and NAVER_OCR_SECRET))}")
+    
+    # 다음 단계 안내
     if st.session_state.get("next_step_hint"):
         st.sidebar.markdown("<hr/>", unsafe_allow_html=True)
         st.sidebar.markdown("### 💡 다음 단계")
         st.sidebar.info(st.session_state["next_step_hint"])
+        
+        # 안내 메시지 초기화 버튼
         if st.sidebar.button("✅ 확인했어요", key="clear_hint"):
             del st.session_state["next_step_hint"]
             st.rerun()
+    
     st.sidebar.markdown("<hr/>", unsafe_allow_html=True)
     st.sidebar.markdown("<div class='small'>지문(괄호)은 TTS에서 읽지 않도록 처리됩니다.</div>", unsafe_allow_html=True)
 
@@ -1426,6 +1418,9 @@ def main():
         "🎙️ 5) AI 대본 연습": page_rehearsal_partner
     }
 
+    #sidebar_status()
+    
+    # 모든 페이지를 하나의 radio로 관리하되 시각적 구분을 위해 CSS 사용
     all_pages = list(pages.keys())
     sel = st.sidebar.radio("메뉴", all_pages, 
                           index=all_pages.index(st.session_state["current_page"]), 
@@ -1434,7 +1429,7 @@ def main():
 
     if st.sidebar.button("전체 초기화", key="btn_reset_all"):
         st.session_state.clear()
-        st.rerun()
+        if hasattr(st, "rerun"): st.rerun()
 
     pages[sel]()
 
