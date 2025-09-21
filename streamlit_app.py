@@ -1155,7 +1155,7 @@ def page_role_balancer():
 # ───────── 페이지 4: 소품·무대·의상 ─────────────────────────────────
 def page_stage_kits():
     st.header("🎭 4) 소품·무대·의상 추천")
-    st.markdown("연극에 필요한 소품을 AI가 추천해줘요.")
+    st.markdown("연극에 필요한 소품을 AI가 추천해 줘요.")
     script = st.session_state.get("script_final") or st.session_state.get("script_balanced") or st.session_state.get("script_raw","")
     if not script: st.warning("먼저 대본을 입력/생성하세요."); return
     if st.button("🧰 목록 만들기", key="btn_kits"):
