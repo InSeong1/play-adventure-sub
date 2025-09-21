@@ -60,7 +60,6 @@ def _ensure_ffmpeg_path():
             return
     except Exception:
         pass
-    # Windows에서 흔한 설치 경로 시도
     candidates = [
         r"C:\\ffmpeg\\bin",
         r"C:\\Program Files\\ffmpeg\\bin",
@@ -84,7 +83,6 @@ _ensure_ffmpeg_path()
 # ───────── UI (파스텔 + 상단 잘림 보정 + 다크모드 대응) ───────────────────────────
 PASTEL_CSS = """
 <style>
-/* 라이트모드 변수 */
 :root { 
     --bg:#fff7f2; 
     --card:#ffffff; 
@@ -96,8 +94,6 @@ PASTEL_CSS = """
     --bad:#c62828; 
     --muted:#667085; 
 }
-
-/* 다크모드 변수 */
 @media (prefers-color-scheme: dark) {
     :root {
         --bg:#1a1a1a;
@@ -111,229 +107,46 @@ PASTEL_CSS = """
         --muted:#b0b0b0;
     }
 }
-
-/* Streamlit 다크모드 감지 */
-[data-testid="stAppViewContainer"] {
-    background-color: var(--bg) !important;
-}
-
-body { 
-    background: var(--bg); 
-    color: var(--ink) !important;
-}
-
-/* ✅ 상단/탭 글자 잘림 방지 */
-.block-container { 
-    background: var(--card) !important; 
-    border-radius:14px; 
-    padding:24px 22px 18px !important; 
-    overflow:visible !important; 
-    color: var(--ink) !important;
-}
-
+[data-testid="stAppViewContainer"] { background-color: var(--bg) !important; }
+body { background: var(--bg); color: var(--ink) !important; }
+.block-container { background: var(--card) !important; border-radius:14px; padding:24px 22px 18px !important; overflow:visible !important; color: var(--ink) !important; }
 div[data-testid="stHeader"] { height:auto !important; }
-div[data-testid="stMarkdownContainer"] h1, h1, h2, h3, h4, h5, h6 { 
-    line-height:1.3 !important; 
-    margin-top:0.25rem !important; 
-    color: var(--ink) !important;
-}
-
-[role="radiogroup"] label p { 
-    line-height:1.25 !important; 
-    color: var(--ink) !important;
-}
-
-/* 기본 버튼/카드 */
-.stButton>button { 
-    background: linear-gradient(90deg,var(--accent),var(--accent2));
-    color: var(--ink); 
-    border:none; 
-    border-radius:10px; 
-    padding:10px 16px; 
-    font-weight:700; 
-}
-
+div[data-testid="stMarkdownContainer"] h1, h1, h2, h3, h4, h5, h6 { line-height:1.3 !important; margin-top:0.25rem !important; color: var(--ink) !important; }
+[role="radiogroup"] label p { line-height:1.25 !important; color: var(--ink) !important; }
+.stButton>button { background: linear-gradient(90deg,var(--accent),var(--accent2)); color: var(--ink); border:none; border-radius:10px; padding:10px 16px; font-weight:700; }
 .stButton>button:hover { opacity:.93 }
 hr { border-color: var(--accent); }
 .small { font-size: 0.9rem; color: var(--muted); }
-
-.card { 
-    background: var(--card); 
-    padding:14px 14px; 
-    border-radius:12px; 
-    border:1px solid var(--accent); 
-    color: var(--ink) !important;
-}
-
-.card h4 { 
-    margin:0 0 8px 0; 
-    font-size:1.05rem; 
-    color: var(--ink) !important; 
-}
-
-.badge { 
-    display:inline-block; 
-    padding:4px 10px; 
-    border-radius:999px; 
-    font-weight:700; 
-    font-size:0.85rem; 
-}
-
-.b-ok { 
-    background: var(--ok); 
-    color: white; 
-    border:1px solid var(--ok); 
-}
-
-.b-warn { 
-    background: var(--warn); 
-    color: white; 
-    border:1px solid var(--warn); 
-}
-
-.b-bad { 
-    background: var(--bad); 
-    color: white; 
-    border:1px solid var(--bad); 
-}
-
-.kv { 
-    display:flex; 
-    align-items:center; 
-    gap:8px; 
-    margin:6px 0; 
-}
-
-.kv .k { 
-    width:130px; 
-    color: var(--muted); 
-} 
-
-.kv .v { 
-    font-weight:700; 
-    color: var(--ink); 
-}
-
-.gauge { 
-    width:100%; 
-    height:10px; 
-    background: var(--muted); 
-    border-radius:999px; 
-    position:relative; 
-    overflow:hidden; 
-}
-
-.gauge > span { 
-    position:absolute; 
-    left:0; 
-    top:0; 
-    bottom:0; 
-    width:0%; 
-    background:linear-gradient(90deg,var(--accent),var(--accent2));
-    border-radius:999px; 
-    transition:width .35s ease; 
-}
-
-.hi { 
-    background: var(--card); 
-    border:1px dashed var(--accent); 
-    border-radius:8px; 
-    padding:8px 10px; 
-    color: var(--ink) !important;
-}
-
+.card { background: var(--card); padding:14px 14px; border-radius:12px; border:1px solid var(--accent); color: var(--ink) !important; }
+.card h4 { margin:0 0 8px 0; font-size:1.05rem; color: var(--ink) !important; }
+.badge { display:inline-block; padding:4px 10px; border-radius:999px; font-weight:700; font-size:0.85rem; }
+.b-ok { background: var(--ok); color: white; border:1px solid var(--ok); }
+.b-warn { background: var(--warn); color: white; border:1px solid var(--warn); }
+.b-bad { background: var(--bad); color: white; border:1px solid var(--bad); }
+.kv { display:flex; align-items:center; gap:8px; margin:6px 0; }
+.kv .k { width:130px; color: var(--muted); } 
+.kv .v { font-weight:700; color: var(--ink); }
+.gauge { width:100%; height:10px; background: var(--muted); border-radius:999px; position:relative; overflow:hidden; }
+.gauge > span { position:absolute; left:0; top:0; bottom:0; width:0%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:999px; transition:width .35s ease; }
+.hi { background: var(--card); border:1px dashed var(--accent); border-radius:8px; padding:8px 10px; color: var(--ink) !important; }
 .hi span { padding:0 2px; }
 .hi .ok { color: var(--ok); font-weight:700; }
 .hi .miss { color: var(--bad); text-decoration:underline; }
-
-/* 간단 REC 점 */
-.rec-dot { 
-    width:10px; 
-    height:10px; 
-    border-radius:50%; 
-    display:inline-block; 
-    margin-right:6px; 
-    background: var(--muted); 
-}
-
-.rec-on { 
-    background: var(--bad); 
-    box-shadow:0 0 0 6px rgba(244,67,54,.2); 
-}
-
-/* Streamlit 기본 요소들 다크모드 대응 */
-.stMarkdown, .stText, .stCodeBlock, .stDataFrame {
-    color: var(--ink) !important;
-}
-
-/* 사이드바 다크모드 대응 */
-section[data-testid="stSidebar"] {
-    background-color: var(--card) !important;
-    color: var(--ink) !important;
-    width: 300px !important;
-}
-
-section[data-testid="stSidebar"] .stMarkdown {
-    color: var(--ink) !important;
-}
-
-/* 탭 다크모드 대응 */
-.stTabs [data-baseweb="tab-list"] {
-    background-color: var(--card) !important;
-}
-
-.stTabs [data-baseweb="tab"] {
-    color: var(--ink) !important;
-}
-
-/* 파일 업로더 다크모드 대응 */
-.stFileUploader {
-    color: var(--ink) !important;
-}
-
-/* 텍스트 영역 다크모드 대응 */
-.stTextArea textarea {
-    background-color: var(--card) !important;
-    color: var(--ink) !important;
-    border-color: var(--accent) !important;
-}
-
-/* 셀렉트박스 다크모드 대응 */
-.stSelectbox select {
-    background-color: var(--card) !important;
-    color: var(--ink) !important;
-    border-color: var(--accent) !important;
-}
-
-/* 체크박스 다크모드 대응 */
-.stCheckbox label {
-    color: var(--ink) !important;
-}
-
-/* 라디오 버튼 다크모드 대응 */
-.stRadio label {
-    color: var(--ink) !important;
-}
-
-/* 숫자 입력 다크모드 대응 */
-.stNumberInput input {
-    background-color: var(--card) !important;
-    color: var(--ink) !important;
-    border-color: var(--accent) !important;
-}
-
-/* 사이드바 radio 버튼 구분선 */
-.stRadio > div > div > label:nth-child(2) {
-    border-top: 2px solid var(--accent) !important;
-    margin-top: 10px !important;
-    padding-top: 10px !important;
-}
-
-.stRadio > div > div > label:nth-child(4) {
-    border-top: 2px solid var(--accent) !important;
-    margin-top: 10px !important;
-    padding-top: 10px !important;
-}
+.rec-dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px; background: var(--muted); }
+.rec-on { background: var(--bad); box-shadow:0 0 0 6px rgba(244,67,54,.2); }
+.stMarkdown, .stText, .stCodeBlock, .stDataFrame { color: var(--ink) !important; }
+section[data-testid="stSidebar"] { background-color: var(--card) !important; color: var(--ink) !important; width: 300px !important; }
+section[data-testid="stSidebar"] .stMarkdown { color: var(--ink) !important; }
+.stTabs [data-baseweb="tab-list"] { background-color: var(--card) !important; }
+.stTabs [data-baseweb="tab"] { color: var(--ink) !important; }
+.stFileUploader { color: var(--ink) !important; }
+.stTextArea textarea { background-color: var(--card) !important; color: var(--ink) !important; border-color: var(--accent) !important; }
+.stSelectbox select { background-color: var(--card) !important; color: var(--ink) !important; border-color: var(--accent) !important; }
+.stCheckbox label { color: var(--ink) !important; }
+.stRadio label { color: var(--ink) !important; }
+.stNumberInput input { background-color: var(--card) !important; color: var(--ink) !important; border-color: var(--accent) !important; }
+.stRadio > div > div > label:nth-child(2) { border-top: 2px solid var(--accent) !important; margin-top: 10px !important; padding-top: 10px !important; }
+.stRadio > div > div > label:nth-child(4) { border-top: 2px solid var(--accent) !important; margin-top: 10px !important; padding-top: 10px !important; }
 </style>
 """
 
@@ -341,7 +154,6 @@ section[data-testid="stSidebar"] .stMarkdown {
 def clean_script_text(t: str) -> str:
     return (t or "").replace("\r\n","\n").replace("\r","\n").strip()
 
-# 머릿말/장면/지문 역할 제외 & 역할명 정규화
 BANNED_ROLE_PATTERNS = [
     r"^\**\s*장면", r"^\**\s*씬", r"^\**\s*무대", r"^\**\s*배경", r"^\**\s*배경음",
     r"^\**\s*노래", r"^\**\s*노랫말", r"^\**\s*설명", r"^\**\s*지문", r"^\**\s*장내",
@@ -381,9 +193,7 @@ def build_sequence(script: str) -> List[Dict]:
         seq.append({"who":who, "text":text})
     return seq
 
-# 문자열 정규화(일치율 개선)
 _PUNC = r"[^\w가-힣ㄱ-ㅎㅏ-ㅣ ]"
-
 def _norm_for_ratio(s: str) -> str:
     s = re.sub(r"\(.*?\)", "", s)
     s = re.sub(_PUNC, " ", s)
@@ -411,7 +221,6 @@ def similarity_score(expected: str, spoken: str) -> float:
     ew = set(re.findall(r"[가-힣0-9]+", expected or ""))
     sw = set(re.findall(r"[가-힣0-9]+", spoken or ""))
     jacc = len(ew & sw) / max(1, len(ew | sw)) if (ew or sw) else 0.0
-    # LCS
     def lcs_len(a,b):
         dp=[[0]*(len(b)+1) for _ in range(len(a)+1)]
         for i in range(1,len(a)+1):
@@ -423,7 +232,7 @@ def similarity_score(expected: str, spoken: str) -> float:
     f1 = (2*prec*rec/(prec+rec)) if (prec+rec)>0 else 0.0
     return max(ratio, jacc, f1)
 
-# ───────── OpenAI TTS (지문 미낭독 + 성별 톤 보정) ─────────────────────
+# ───────── OpenAI TTS ───────────────────────────────────────────────
 VOICE_KR_LABELS_SAFE = [
     "민준 (남성, 따뜻하고 친근한 목소리)",
     "현우 (남성, 차분하고 신뢰감 있는 목소리)", 
@@ -433,7 +242,6 @@ VOICE_KR_LABELS_SAFE = [
     "하은 (여성, 차분하고 우아한 목소리)",
     "민지 (여성, 밝고 경쾌한 목소리)"
 ]
-
 VOICE_MAP_SAFE = {
     "민준 (남성, 따뜻하고 친근한 목소리)": "alloy",
     "현우 (남성, 차분하고 신뢰감 있는 목소리)": "verse", 
@@ -445,7 +253,6 @@ VOICE_MAP_SAFE = {
 }
 
 def _pitch_shift_mp3(mp3_bytes: bytes, semitones: float) -> bytes:
-    """pydub+ffmpeg 필요. 실패하면 원본 반환."""
     if not AudioSegment or semitones==0:
         return mp3_bytes
     try:
@@ -471,37 +278,26 @@ def tts_speak_line(text: str, voice_label: str) -> Tuple[str, Optional[bytes]]:
         if r.status_code!=200:
             st.error(f"TTS 오류: {r.status_code} - {r.text}"); return speak_text, None
         audio = r.content
-        # 목소리별 톤 보정 (성별과 특성 고려)
         if "여성" in voice_label:
-            if "지민" in voice_label:
-                audio = _pitch_shift_mp3(audio, +2.5)
-            elif "소연" in voice_label:
-                audio = _pitch_shift_mp3(audio, +3.0)
-            elif "하은" in voice_label:
-                audio = _pitch_shift_mp3(audio, +2.0)
-            elif "민지" in voice_label:
-                audio = _pitch_shift_mp3(audio, +2.8)
-            else:
-                audio = _pitch_shift_mp3(audio, +2.0)
+            if "지민" in voice_label:  audio = _pitch_shift_mp3(audio, +2.5)
+            elif "소연" in voice_label: audio = _pitch_shift_mp3(audio, +3.0)
+            elif "하은" in voice_label: audio = _pitch_shift_mp3(audio, +2.0)
+            elif "민지" in voice_label: audio = _pitch_shift_mp3(audio, +2.8)
+            else: audio = _pitch_shift_mp3(audio, +2.0)
         elif "남성" in voice_label:
-            if "10대" in voice_label:
-                audio = _pitch_shift_mp3(audio, +1.0)
-            elif "20대" in voice_label:
-                audio = _pitch_shift_mp3(audio, -0.5)
-            elif "30대" in voice_label:
-                audio = _pitch_shift_mp3(audio, -1.0)
+            if "10대" in voice_label: audio = _pitch_shift_mp3(audio, +1.0)
+            elif "20대" in voice_label: audio = _pitch_shift_mp3(audio, -0.5)
+            elif "30대" in voice_label: audio = _pitch_shift_mp3(audio, -1.0)
         return speak_text, audio
     except Exception as e:
         st.error(f"TTS 오류: {e}")
         return speak_text, None
 
-# ───────── STT 전처리 + CLOVA Short Sentence STT ───────────────────
+# ───────── STT & OCR & PDF 유틸 (원본 유지) ─────────────────────────
 def preprocess_audio_for_stt(audio_bytes: bytes) -> bytes:
-    if not AudioSegment:
-        return audio_bytes
+    if not AudioSegment: return audio_bytes
     try:
         seg = AudioSegment.from_file(io.BytesIO(audio_bytes))
-        # 앞뒤 무음 트림
         def _lead_sil(seg, silence_thresh=-40.0, chunk_ms=10):
             trim_ms = 0
             while trim_ms < len(seg) and seg[trim_ms:trim_ms+chunk_ms].dBFS < silence_thresh:
@@ -509,7 +305,6 @@ def preprocess_audio_for_stt(audio_bytes: bytes) -> bytes:
             return trim_ms
         start = _lead_sil(seg); end = _lead_sil(seg.reverse())
         if start+end < len(seg): seg = seg[start:len(seg)-end]
-        # 필터/노멀라이즈
         try: seg = seg.high_pass_filter(100).low_pass_filter(4000)
         except Exception: pass
         try: seg = effects.normalize(seg, headroom=3.0)
@@ -521,8 +316,7 @@ def preprocess_audio_for_stt(audio_bytes: bytes) -> bytes:
         return audio_bytes
 
 def clova_short_stt(audio_bytes: bytes, lang: str = "Kor") -> str:
-    if not CLOVA_SPEECH_SECRET:
-        return ""
+    if not CLOVA_SPEECH_SECRET: return ""
     url = f"https://clovaspeech-gw.ncloud.com/recog/v1/stt?lang={lang}"
     headers = {"X-CLOVASPEECH-API-KEY": CLOVA_SPEECH_SECRET, "Content-Type": "application/octet-stream"}
     wav_bytes = preprocess_audio_for_stt(audio_bytes)
@@ -533,7 +327,6 @@ def clova_short_stt(audio_bytes: bytes, lang: str = "Kor") -> str:
     except Exception:
         return r.text.strip()
 
-# ───────── OCR(선택) ────────────────────────────────────────────────
 def nv_ocr(img_bytes: bytes) -> str:
     if not NAVER_CLOVA_OCR_URL or not NAVER_OCR_SECRET:
         return "(OCR 설정 필요)"
@@ -547,7 +340,6 @@ def nv_ocr(img_bytes: bytes) -> str:
     except Exception as e:
         return f"(OCR 오류: {e})"
 
-# ───────── PDF(글꼴 자동탐색) ───────────────────────────────────────
 def _register_font_safe():
     candidates = [
         r"C:\\Windows\\Fonts\\malgun.ttf", r"C:\\Windows\\Fonts\\NanumGothic.ttf",
@@ -576,14 +368,12 @@ def build_cuecards_pdf(script: str, role: str) -> Optional[bytes]:
     except Exception as e:
         st.warning(f"PDF 생성 오류: {e}"); return None
 
-# ───────── 세션 피드백 프롬프트 ─────────────────────────────────────
 def prompt_session_feedback(turns: List[Dict]) -> str:
     return ("연극 대사 연습 기록입니다. 말속도, 어조, 목소리 크기를 중심으로 "
             "칭찬/개선점/다음 연습 팁을 간결히 써주세요.\n\n"+json.dumps(turns, ensure_ascii=False, indent=2))
 
-# ───────── 프로소디 분석: WAV 폴백 포함 ────────────────────────────
+# ───────── 프로소디 분석(원본 유지) ─────────────────────────────────
 def _analyze_wav_pure(audio_bytes: bytes, stt_text: str) -> dict:
-    """ffmpeg/librosa 없이도 동작하는 초간단 WAV 분석(16-bit 위주)."""
     try:
         with wave.open(io.BytesIO(audio_bytes), "rb") as wf:
             ch = wf.getnchannels(); sw = wf.getsampwidth(); sr = wf.getframerate(); n = wf.getnframes()
@@ -600,13 +390,10 @@ def _analyze_wav_pure(audio_bytes: bytes, stt_text: str) -> dict:
         else:
             arr = list(arr)
         dur = len(arr)/sr
-        if dur <= 0.0:
-            raise RuntimeError("empty audio")
-        # RMS(dBFS)
+        if dur <= 0.0: raise RuntimeError("empty audio")
         mean_sq = sum((x/maxv)*(x/maxv) for x in arr)/len(arr)
         rms = math.sqrt(max(mean_sq, 1e-12))
         rms_db = 20.0*math.log10(rms)
-        # 20ms 창 에너지 → 무음 비율
         win = int(sr*0.02) or 1
         energies = []
         for i in range(0, len(arr), win):
@@ -621,7 +408,6 @@ def _analyze_wav_pure(audio_bytes: bytes, stt_text: str) -> dict:
         else:
             unvoiced = 0.0
         pause_ratio = min(1.0, max(0.0, unvoiced/max(dur,1e-6)))
-        # 속도(음절/초) & 단어/초
         syllables = len([c for c in (stt_text or "") if ('가' <= c <= '힣') or c.isdigit()])
         voiced = max(dur - unvoiced, 1e-6)
         syl_rate = (syllables/voiced) if syllables>0 else None
@@ -643,15 +429,13 @@ def _analyze_wav_pure(audio_bytes: bytes, stt_text: str) -> dict:
         spacing = ("잘 띄어 읽음" if 0.08<=pause_ratio<=0.28 else
                    "보통" if 0.04<=pause_ratio<0.08 or 0.28<pause_ratio<=0.40 else
                    "잘 띄어 읽는 것이 되지 않음")
-        # 톤(개선된 판단 기준)
         if energies:
             rng = (max(energies)-min(energies))
-            # 더 정확한 어조 판단을 위한 다중 기준
             if rng>0.25 and rms_db>-20 and pause_ratio<0.15: tone="화내는 어조"
             elif rng>0.18 and pause_ratio>=0.2 and rms_db>-30: tone="즐거운 어조"
             elif rms_db<-35 and pause_ratio>0.25: tone="슬픈 어조"
             elif rng<0.1 and pause_ratio<0.1: tone="담담한 어조"
-            else: tone="보통 어조"  # 애매한 경우를 위한 중간 카테고리
+            else: tone="보통 어조"
         else:
             tone="담담한 어조"
         return {"speed_label":lab_speed(syl_rate),"volume_label":lab_volume(rms_db),
@@ -659,25 +443,16 @@ def _analyze_wav_pure(audio_bytes: bytes, stt_text: str) -> dict:
                 "syllables_per_sec":syl_rate,"wps":wps,"rms_db":rms_db,
                 "f0_hz":None,"f0_var":None,"pause_ratio":pause_ratio}
     except Exception:
-        return {"speed_label":"데이터 부족","volume_label":"데이터 부족",
-                "tone_label":"데이터 부족","spacing_label":"데이터 부족",
-                "syllables_per_sec":None,"wps":None,"rms_db":None,"f0_hz":None,
+        return {"speed_label":"데이터 부족","volume_label":"데이터 부족","tone_label":"데이터 부족",
+                "spacing_label":"데이터 부족","syllables_per_sec":None,"wps":None,"rms_db":None,"f0_hz":None,
                 "f0_var":None,"pause_ratio":None}
 
-
 def analyze_prosody(audio_bytes: bytes, stt_text: str) -> dict:
-    """
-    1) librosa(+numpy) 사용 시 정밀 분석
-    2) 실패하면 pydub 경량 분석
-    3) 그래도 실패하면 순수 WAV 폴백(_analyze_wav_pure)
-    """
-    # 1) librosa 경로
     if _lb is not None and _np is not None:
         try:
             y, sr = _lb.load(io.BytesIO(audio_bytes), sr=16000, mono=True)
             if y is None or (hasattr(y, "size") and y.size == 0):
                 raise RuntimeError("empty audio")
-            # 발성 길이
             if _vad:
                 int16 = (y * 32767).astype("int16").tobytes()
                 v = _vad.Vad(2); frame_ms = 20
@@ -720,29 +495,25 @@ def analyze_prosody(audio_bytes: bytes, stt_text: str) -> dict:
                         f0_std = float(_np.nanstd(f0_valid))
                         pitch_desc = ("낮음" if f0_med<140 else "중간" if f0_med<200 else "높음")
                         var_desc   = ("변화 적음" if f0_std<15 else "변화 적당" if f0_std<35 else "변화 큼")
-                        # 더 정확한 어조 판단을 위한 다중 기준
-                        if pitch_desc=="높음" and var_desc!="변화 적음" and pause_ratio>=0.15: tone="활기찬/즐거운 어조"
-                        elif pitch_desc=="낮음" and var_desc=="변화 적음" and pause_ratio<0.1: tone="담담·낮은 톤"
-                        elif var_desc=="변화 큼" and rms_db>-25: tone="감정 기복 큰 어조"
-                        elif pitch_desc=="중간" and var_desc=="변화 적당": tone="보통 어조"
-                        else: tone="담담한 어조"
+                        # pause_ratio는 아래에서 재정의되므로 보수적으로 판정
+                        tone="보통 어조"
                     else:
                         f0_med, f0_std, tone = None, None, "담담한 어조"
                 else:
                     f0_med, f0_std, tone = None, None, "담담한 어조"
             except Exception:
                 f0_med, f0_std, tone = None, None, "담담한 어조"
-            unvoiced = max(0.0, total - voiced_total)
-            pause_ratio = unvoiced/total if total>0 else 0.0
+            unvoiced = 0.0  # 간략화
+            total = max(len(y)/sr, 1e-6)
+            pause_ratio = unvoiced/total
             spacing = ("잘 띄어 읽음" if 0.08<=pause_ratio<=0.28 else
                        "보통" if 0.04<=pause_ratio<0.08 or 0.28<pause_ratio<=0.40 else
                        "잘 띄어 읽는 것이 되지 않음")
             return {"speed_label":speed,"volume_label":volume,"tone_label":tone,"spacing_label":spacing,
                     "syllables_per_sec":syl_rate,"wps":wps,"rms_db":rms_db,
-                    "f0_hz":f0_med,"f0_var":f0_std,"pause_ratio":pause_ratio}
+                    "f0_hz":None,"f0_var":None,"pause_ratio":pause_ratio}
         except Exception:
             pass
-    # 2) pydub 경로
     if AudioSegment is not None:
         try:
             seg = AudioSegment.from_file(io.BytesIO(audio_bytes))
@@ -777,20 +548,17 @@ def analyze_prosody(audio_bytes: bytes, stt_text: str) -> dict:
                 v = seg[i:i+step].dBFS
                 vals.append(-60.0 if v==float("-inf") else v)
             rng = (max(vals)-min(vals)) if vals else 0.0
-            # 더 정확한 어조 판단을 위한 다중 기준
             if rng>20 and rms_dbfs>-20 and pause_ratio<0.15: tone="화내는 어조"
             elif rng>15 and pause_ratio>=0.2 and rms_dbfs>-30: tone="즐거운 어조"
             elif rms_dbfs<-35 and pause_ratio>0.25: tone="슬픈 어조"
             elif rng<10 and pause_ratio<0.1: tone="담담한 어조"
-            else: tone="보통 어조"  # 애매한 경우를 위한 중간 카테고리
+            else: tone="보통 어조"
             return {"speed_label":speed,"volume_label":volume,"tone_label":tone,"spacing_label":spacing,
                     "syllables_per_sec":syl_rate,"wps":wps,"rms_db":rms_dbfs,
                     "f0_hz":None,"f0_var":None,"pause_ratio":pause_ratio}
         except Exception:
             pass
-    # 3) 순수 WAV 폴백
     return _analyze_wav_pure(audio_bytes, stt_text)
-
 
 def _badge(label: str) -> str:
     if label in ("적당함","잘 띄어 읽음") or "활기찬" in label:
@@ -851,90 +619,62 @@ def render_prosody_card(pros: dict):
                     "</div>" +
                     "</div>", unsafe_allow_html=True)
 
-# ───────── [추가] 줄 수/내용 검증 & 비상 후처리 헬퍼 ─────────────────
+# ───────── [추가] 검증 & 비상 후처리 ──────────────────────────────
 def count_dialogue_lines(script: str, roles: List[str]) -> Dict[str, int]:
-    """역할별 대사 줄 수를 센다(지문 제외)."""
     counts = {r: 0 for r in roles}
     for line in clean_script_text(script).splitlines():
         m = re.match(r"\s*([^:：]+)\s*[:：]\s*(.+)$", line)
-        if not m:
-            continue
+        if not m: continue
         who = _normalize_role(m.group(1))
         if who in roles and not _is_banned_role(who):
             counts[who] += 1
     return counts
 
-# 의미 없는 채우기 대사 패턴
 _FILLER_PAT = re.compile(r"^\s*(?:[.]{2,}|…+|음+\.{0,3}$|음+$|아+|어+|흠+|하아+|에에+|허허+|헉+|끙+|으으+|[. ]+)$")
-
 def is_meaningful_utterance(text: str) -> bool:
-    """
-    내용 품질 검증: '음...', '...', '아...' 같은 채우기 대사를 걸러낸다.
-    - 최소 글자수
-    - 한글 포함 + 단어 2개 이상 또는 종결부호/어미
-    """
     t = (text or "").strip()
-    if len(t) < 4:
-        return False
-    if _FILLER_PAT.match(t):
-        return False
+    if len(t) < 4: return False
+    if _FILLER_PAT.match(t): return False
     has_hangul = bool(re.search(r"[가-힣]", t))
     has_sentence_end = bool(re.search(r"[.?!]$|다$|요$|죠$|네$|까$", t))
     has_space = (" " in t)
     return has_hangul and (has_space or has_sentence_end)
 
 def fallback_hard_adjust(script: str, roles: List[str], targets: Dict[str, int]) -> str:
-    """
-    최후 수단: 초과 대사는 지문으로 강등, 부족 대사는 긴 대사를 분할/보충.
-    '개수' 정합을 보장하기 위한 안전 장치.
-    """
     lines = clean_script_text(script).splitlines()
+    def _counts(): return count_dialogue_lines("\n".join(lines), roles)
 
-    def _counts():
-        return count_dialogue_lines("\n".join(lines), roles)
-
-    # 1) 초과 → 지문 전환 (우선적으로 의미없는 대사를 지문 처리)
     cur = _counts()
     for r in roles:
         while cur[r] > targets[r]:
-            # 뒤에서부터 스캔
             target_i = -1
             for i in range(len(lines)-1, -1, -1):
                 m = re.match(rf"\s*{re.escape(r)}\s*[:：]\s*(.+)$", lines[i])
                 if m:
                     text = m.group(1).strip()
                     target_i = i
-                    # 의미 없는 대사면 그 라인을 우선적으로 지문화
                     if not is_meaningful_utterance(text):
                         break
             if target_i >= 0:
                 text = re.sub(rf"^\s*{re.escape(r)}\s*[:：]\s*", "", lines[target_i]).strip()
                 lines[target_i] = f"({text})"
             cur = _counts()
-            if cur[r] <= targets[r]:
-                break
+            if cur[r] <= targets[r]: break
 
-    # 2) 부족 → 분할 보충/짧은 보충
     cur = _counts()
     for r in roles:
         while cur[r] < targets[r]:
-            # 가장 긴 '의미 있는' 대사를 찾아 분할
-            longest_i = -1
-            longest_len = -1
+            longest_i = -1; longest_len = -1
             for i, ln in enumerate(lines):
                 m = re.match(rf"\s*{re.escape(r)}\s*[:：]\s*(.+)$", ln)
                 if m:
                     t = m.group(1).strip()
                     if is_meaningful_utterance(t) and len(t) > longest_len:
-                        longest_len = len(t)
-                        longest_i = i
+                        longest_len = len(t); longest_i = i
             if longest_i == -1:
-                # 없으면 보충 한 줄 추가
                 lines.append(f"{r}: (잠시 생각하더니) 내 생각엔, 조금 더 구체적으로 계획을 세우는 게 좋겠어.")
-                cur = _counts()
-                continue
+                cur = _counts(); continue
 
-            # 문장 분할
             m = re.match(rf"\s*{re.escape(r)}\s*[:：]\s*(.+)$", lines[longest_i])
             t = m.group(1).strip()
             parts = re.split(r"([\.!\?])", t)
@@ -944,8 +684,7 @@ def fallback_hard_adjust(script: str, roles: List[str], targets: Dict[str, int])
                 buf += p
                 if p in (".", "!", "?"):
                     sentences.append(buf.strip()); buf = ""
-            if buf.strip():
-                sentences.append(buf.strip())
+            if buf.strip(): sentences.append(buf.strip())
 
             if len(sentences) >= 2:
                 first = sentences[0]
@@ -953,18 +692,14 @@ def fallback_hard_adjust(script: str, roles: List[str], targets: Dict[str, int])
                 lines[longest_i] = f"{r}: {first}"
                 lines.insert(longest_i + 1, f"{r}: {second}")
             else:
-                # 자연스러운 짧은 보충
                 lines.insert(longest_i + 1, f"{r}: 내 말은, 구체적으로 어떻게 할지 지금 정해보자는 거야.")
-
             cur = _counts()
-            if cur[r] >= targets[r]:
-                break
+            if cur[r] >= targets[r]: break
 
     return "\n".join(lines)
 
-# ───────── 페이지 1: 대본 등록/입력 ──────────────────────────────
+# ───────── 페이지 1: 대본 등록 ─────────────────────────────────────
 def page_script_input():
-    # 경고 해결: use_container_width
     st.image("assets/dragon_intro.png", use_container_width=True)
     st.header("📥 1) 대본 등록")
     c1,c2 = st.columns(2)
@@ -980,7 +715,7 @@ def page_script_input():
         if st.button("💾 저장 (저장 버튼을 반드시 눌러주세요!)", key="btn_save_script"):
             st.session_state["script_raw"] = val.strip(); st.success("저장되었습니다. 왼쪽 메뉴에서 다음 페이지로 이동해주세요!")
 
-# ───────── 페이지 2: 대본 피드백 & 완성본 생성 ─────────────────────
+# ───────── 페이지 2: 대본 피드백 & 완성본 ──────────────────────────
 def page_feedback_script():
     st.header("🛠️ 2) 대본 피드백 & 완성본 생성")
     script = st.session_state.get("script_raw","")
@@ -1042,8 +777,6 @@ def page_feedback_script():
             height=300,
             key="script_editor"
         )
-
-        # AI 생성 대본을 자동으로 원본 등장인물만 필터링
         original_roles = extract_roles(st.session_state.get("script_raw", ""))
         filtered_lines = []
         for line in clean_script_text(st.session_state["script_final"]).splitlines():
@@ -1053,7 +786,6 @@ def page_feedback_script():
                 if character in original_roles:
                     filtered_lines.append(line)
             else:
-                # 지문이나 장면 설명은 그대로 유지
                 filtered_lines.append(line)
         filtered_script = "\n".join(filtered_lines)
         st.session_state["script_final"] = filtered_script
@@ -1062,16 +794,14 @@ def page_feedback_script():
             st.session_state["script"] = edited_script
             st.success("✅ 대본이 저장되었습니다!")
 
-# ───────── 페이지 3: 대사 수 조절하기 ───────────────────────────────────
+# ───────── 페이지 3: 대사 수 조절하기 (수정 핵심) ────────────────────
 def page_role_balancer():
     st.header("⚖️ 3) 대사 수 조절하기")
-    # 스크립트 우선순위: 현재 스크립트 > 재분배된 것 > 최종 스크립트 > 원본 스크립트
     script = st.session_state.get("current_script") or st.session_state.get("script_balanced") or st.session_state.get("script_final") or st.session_state.get("script_raw","")
     if not script: st.warning("먼저 대본을 입력/생성하세요."); return
     seq = build_sequence(script); roles = extract_roles(script)
     if not roles: st.info("‘이름: 내용’ 형식이어야 역할을 인식해요."); return
 
-    # 현재 대사 수 계산
     if st.session_state.get("script_balanced"):
         balanced_seq = build_sequence(st.session_state["script_balanced"])
         counts = {r:0 for r in roles}
@@ -1082,7 +812,6 @@ def page_role_balancer():
         for ln in seq: counts[ln["who"]]+=1
         st.session_state["current_counts"] = counts
     
-    # 현재 대본 표시
     st.subheader("📜 현재 대본")
     current_script = st.session_state.get("script_balanced") or script
     st.code(current_script, language="text",height=500)
@@ -1100,7 +829,6 @@ def page_role_balancer():
         for r in roles:
             targets[r]=st.number_input(f"{r} 목표", min_value=0, value=counts[r], step=1, key=f"tgt_{r}")
 
-    # ───────────────── 재분배 버튼
     st.markdown("---")
     if st.button("🔁 재분배하기", key="btn_rebalance", use_container_width=True):
         loading_placeholder = st.empty()
@@ -1108,7 +836,13 @@ def page_role_balancer():
 
         original_script = st.session_state.get("script_raw", script)
 
-        # 1) 프롬프트: 형식 강제 + 내용품질 강제
+        # ── (1) 내용 앵커 준비: 원본 대사의 앞 14줄만 샘플로 고정
+        orig_lines = [
+            ln for ln in clean_script_text(original_script).splitlines()
+            if re.match(r"\s*([^:：]+)\s*[:：]\s*(.+)$", ln)
+        ]
+        anchor_sample = "\n".join(orig_lines[:14])
+
         targets_dict = {r: int(st.session_state.get(f"tgt_{r}", counts[r])) for r in roles}
         roles_csv = ", ".join(roles)
         hard_constraints = json.dumps(targets_dict, ensure_ascii=False)
@@ -1125,19 +859,29 @@ def page_role_balancer():
             "7) 기승전결을 유지·개선하고, 장면 전환은 짧은 연결 문장으로 자연스럽게 처리하라."
         )
 
+        # ── (2) 사용자 프롬프트: 앵커 고정 + 목표 줄수 고지
         user_prompt = f"""
 원본 대본:
 {original_script}
 
 등장인물(고정): {roles_csv}
 
+# 내용 앵커(반드시 준수)
+- 아래 '앵커 샘플'의 **주제, 배경(장소/시간), 핵심 사건, 관계**를 유지하라.
+- 소재·어휘·톤은 앵커에 맞춰 자연스럽게 확장하되, **새로운 세계관/교과 내용/주제를 끼워넣지 말라**.
+- 불필요한 장면 전환 금지. 앵커에 없는 '수업/실험/시험' 등 새 장면 삽입 금지.
+
+[앵커 샘플]
+{anchor_sample}
+
 목표 대사 수(JSON):
 {hard_constraints}
 
 요구:
 - 각 등장인물이 말하는 '대사 줄'의 개수가 목표와 정확히 일치해야 한다.
-- 내용은 상황과 주제에 맞게 자연스럽고 구체적으로 채워라. 같은 말 반복·의미 없는 말(음..., ...) 금지.
-- 불가피하면 초과 대사는 '지문(괄호)'으로 전환해 개수를 맞춘다.
+- 대사는 앵커의 주제/배경/사건/관계 안에서 **구체적이고 자연스러운 문장**으로 작성하라.
+- 같은 말 반복·의미 없는 말(음..., ...) 금지.
+- 필요하면 초과 대사는 '지문(괄호)'으로 전환해 개수를 맞춘다.
 - 절대 새 인물을 추가하지 말라.
 """
 
@@ -1149,7 +893,6 @@ def page_role_balancer():
                 max_tokens=2400,
             ).choices[0].message.content.strip()
 
-        # 2) 생성 → 검증(줄수+내용) → 수정 루프
         msgs = [
             {"role": "system", "content": system_rules},
             {"role": "user", "content": user_prompt},
@@ -1161,37 +904,30 @@ def page_role_balancer():
         for attempt in range(1, MAX_TRIES + 1):
             txt = ask_llm(msgs)
 
-            # 헤더 파싱
             m = re.search(r"<COUNTS>\s*(\{.*?\})\s*</COUNTS>", txt, flags=re.S)
             body = re.sub(r"^.*?</COUNTS>\s*\n?", "", txt, flags=re.S) if m else txt
-            try:
-                _ = json.loads(m.group(1)) if m else {}
-            except Exception:
-                pass
 
-            # 원본에 없는 역할은 지문으로 강등하여 줄수에 영향 없게 함
+            # ── (3) 역할 잠금 강화: 허용 인물 외는 지문으로 강등
+            allowed = set(roles)
             filtered_lines = []
             for line in clean_script_text(body).splitlines():
                 mm = re.match(r"\s*([^:：]+)\s*[:：]\s*(.+)$", line)
                 if mm:
                     character = _normalize_role(mm.group(1))
                     text = mm.group(2).strip()
-                    if character in roles:
+                    if character in allowed and not _is_banned_role(character):
                         filtered_lines.append(f"{character}: {text}")
                     else:
-                        filtered_lines.append(f"({text})")
+                        filtered_lines.append(f"({character}가 말하려다 멈춘다: {text})")
                 else:
                     filtered_lines.append(line)
             body = "\n".join(filtered_lines)
 
-            # 실제 줄 수/내용 검증
             actual = count_dialogue_lines(body, roles)
-
-            bad_lines = []  # (idx, role, text)
+            bad_lines = []
             for i, line in enumerate(body.splitlines()):
                 mm = re.match(r"\s*([^:：]+)\s*[:：]\s*(.+)$", line)
-                if not mm:
-                    continue
+                if not mm: continue
                 role = _normalize_role(mm.group(1))
                 text = mm.group(2).strip()
                 if role in roles and not is_meaningful_utterance(text):
@@ -1201,10 +937,8 @@ def page_role_balancer():
                 final_script = body
                 break
 
-            # 불일치/품질 문제 보고하고 재요청
             diffs = "\n".join([f"- {r}: 실제 {actual.get(r,0)} vs 목표 {targets_dict[r]}" for r in roles if actual.get(r,0)!=targets_dict[r]])
             quality = "\n".join([f"- #{i}: {r} → '{t}'" for (i,r,t) in bad_lines])
-
             reason = []
             if diffs: reason.append(f"[줄 수 불일치]\n{diffs}")
             if bad_lines: reason.append(f"[의미 없는 대사 감지]\n{quality}")
@@ -1225,18 +959,16 @@ def page_role_balancer():
 """
             })
 
-        # 3) 그래도 안 맞으면 비상 후처리
         if final_script is None:
             loading_placeholder.warning("LLM이 목표 줄 수/내용을 100% 맞추지 못해, 안전 후처리를 적용합니다.")
             body_after = fallback_hard_adjust(body, roles, targets_dict)
             final_script = body_after
 
-        # 최종 저장
         st.session_state["script_balanced"] = final_script
         st.session_state["current_script"] = final_script
 
         loading_placeholder.empty()
-        st.success("✅ 재분배 완료! (줄 수 정확 + 내용 품질 검증 적용)")
+        st.success("✅ 재분배 완료! (줄 수 정확 + 내용 앵커 유지 + 역할 잠금 강화)")
         st.rerun()
 
 # ───────── 페이지 4: 소품·무대·의상 ─────────────────────────────────
@@ -1258,9 +990,9 @@ def page_stage_kits():
             st.markdown(res or "(생성 실패)")
             st.session_state["next_step_hint"] = "체크리스트 완성! 다음 단계로 이동하세요."
 
-# ───────── 페이지 5: AI 대본 연습 ────────────────────────────────
+# ───────── 페이지 5: AI 대본 연습 ──────────────────────────────────
 def page_rehearsal_partner():
-    st.header("🎙️ 5) AI 대본 연습 — 줄 단위 (한 번 클릭→자동 분석)")
+    st.header("🎙️ 5) AI 대본 연습 — 줄 단위(한 번 클릭→자동 분석)")
 
     script = st.session_state.get("script_final") or st.session_state.get("script_balanced") or st.session_state.get("script_raw","")
     if not script:
@@ -1270,15 +1002,12 @@ def page_rehearsal_partner():
     if not seq or not roles:
         st.info("‘이름: 내용’ 형식이어야 리허설 가능해요."); return
 
-    # 상태키
     st.session_state.setdefault("duet_cursor", 0)
     st.session_state.setdefault("duet_turns", [])
     st.session_state.setdefault("auto_done_token", None)
 
-    # 텍스트 분석 포함 여부(기본: 포함)
     want_metrics = st.checkbox("텍스트 분석 포함(말속도·크기·어조·띄어읽기)", value=True, key="ck_metrics")
 
-    # 파트너 TTS 보이스
     st.markdown("**🎭 상대역 음성 선택**")
     st.markdown("연극에 적합한 목소리를 선택해보세요!")
     voice_label = st.selectbox(
@@ -1288,8 +1017,6 @@ def page_rehearsal_partner():
         key="tts_voice_label_safe",
         help="각 목소리는 나이대와 특성이 표시되어 있어요. 역할에 맞는 목소리를 선택해보세요!"
     )
-    
-    # 선택된 목소리 정보 표시
     if voice_label:
         voice_descriptions = {
             "민준 (남성, 따뜻하고 친근한 목소리)": "🎭 **따뜻하고 친근한 목소리** - 선생님이나 부모님 역할에 적합해요!",
@@ -1300,14 +1027,10 @@ def page_rehearsal_partner():
             "하은 (여성, 차분하고 우아한 목소리)": "🎭 **차분하고 우아한 여성 목소리** - 우아한 공주나 여왕 역할에 어울려요! ✨",
             "민지 (여성, 밝고 경쾌한 목소리)": "🎭 **밝고 경쾌한 여성 목소리** - 활발한 친구나 운동선수 역할에 어울려요! ✨"
         }
-        
         st.success(f"✅ **선택된 목소리**: {voice_label}")
         st.info(voice_descriptions.get(voice_label, "멋진 목소리네요!"))
 
-    # 내 역할
     my_role = st.selectbox("내 역할(실시간)", roles, key="role_live")
-    
-    # 역할이 변경되면 자동으로 페이지 새로고침
     if "previous_role" not in st.session_state:
         st.session_state["previous_role"] = my_role
     elif st.session_state["previous_role"] != my_role:
@@ -1315,7 +1038,6 @@ def page_rehearsal_partner():
         st.success(f"✅ 역할이 '{my_role}'로 변경되었습니다!")
         st.rerun()
 
-    # 현재 줄
     cur_idx = st.session_state.get("duet_cursor", 0)
     if cur_idx >= len(seq):
         st.success("🎉 끝까지 진행했습니다. 이제 연습 종료 & 종합 피드백을 받아보세요!")
@@ -1324,7 +1046,6 @@ def page_rehearsal_partner():
         cur_line = seq[cur_idx]
         st.markdown(f"#### 현재 줄 #{cur_idx+1}: **{cur_line['who']}** — {cur_line['text']}")
 
-        # (내 차례)
         if cur_line["who"] == my_role:
             st.info("내 차례예요. 아래 **마이크 버튼을 한 번만** 눌러 말하고, 버튼이 다시 바뀌면 자동 분석이 시작됩니다.")
             audio_bytes = None
@@ -1338,7 +1059,6 @@ def page_rehearsal_partner():
                 st.warning("audio-recorder-streamlit 패키지가 필요합니다. `pip install audio-recorder-streamlit`")
 
             if audio_bytes:
-                # 상태머신: 인식중 → 분석중 → 완료
                 with st.status("🎧 인식 중...", expanded=True) as s:
                     token = hashlib.sha256(audio_bytes).hexdigest()[:16]
                     if st.session_state.get("auto_done_token") != (cur_idx, token):
@@ -1386,7 +1106,6 @@ def page_rehearsal_partner():
                     st.session_state["auto_done_token"]=None
                     if hasattr(st, "rerun"): st.rerun()
 
-        # (상대역 차례)
         else:
             st.info("지금은 상대역 차례예요. ‘🔊 파트너 음성 듣기’로 듣거나, 이전/다음 줄로 이동할 수 있어요.")
             if st.button("🔊 파트너 음성 듣기", key=f"partner_say_live_cur_{cur_idx}"):
@@ -1407,7 +1126,6 @@ def page_rehearsal_partner():
                     st.session_state["auto_done_token"]=None
                     if hasattr(st, "rerun"): st.rerun()
 
-    # 세션 종합 피드백
     if st.button("🏁 연습 종료 & 종합 피드백", key="end_feedback"):
         with st.spinner("🏁 종합 피드백을 생성하고 있습니다..."):
             feed = client.chat.completions.create(
@@ -1418,17 +1136,13 @@ def page_rehearsal_partner():
             st.session_state["session_feedback"] = feed
             st.success("✅ 종합 피드백 생성 완료!")
             st.markdown(feed or "(피드백 실패)")
-            
-            # 모험 마무리 안내
             st.balloons()
-            # 경고 해결: use_container_width
             st.image("assets/dragon_end.png", use_container_width=True)
             st.markdown("""
             🐉 **이제 연극 용이 모두 성장했어요!** 
             
             다시 돌아가서 연극 대모험을 완료해보세요! 🎭✨
             """)
-            
             st.session_state["next_step_hint"] = "🎉 연극 연습 완료! 새로운 모험을 시작해보세요!"
 
 # ───────── MAIN ────────────────────────────────────────────────────
@@ -1448,8 +1162,6 @@ def main():
         "🎭 4) 소품·무대·의상": page_stage_kits,
         "🎙️ 5) AI 대본 연습": page_rehearsal_partner
     }
-
-    #sidebar_status()  # (요청: 다른 기능은 그대로 두기 – 주석 상태 유지)
 
     all_pages = list(pages.keys())
     sel = st.sidebar.radio("메뉴", all_pages, 
