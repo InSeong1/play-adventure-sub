@@ -8,7 +8,22 @@ from typing import List, Dict, Tuple, Optional
 import streamlit as st
 import requests
 from difflib import SequenceMatcher
+import os, tempfile
 
+def safe_write_text(filename: str, content: str, encoding="utf-8"):
+    """
+    항상 임시폴더에 안전하게 파일을 씁니다.
+    """
+    tmpdir = tempfile.gettempdir()  # /tmp 같은 OS별 안전한 임시경로
+    path = os.path.join(tmpdir, filename)
+    with open(path, "w", encoding=encoding) as f:
+        f.write(content)
+    return path
+
+# 사용 예시:
+code = "print('Hello, Dragon!')"
+path = safe_write_text("yeongeuk_dragon_final.py", code)
+print("✅ 저장된 경로:", path)
 # 선택 의존성 ─────────────────────────────────────────────────────────
 try:
     from pydub import AudioSegment, effects, silence as _silence
