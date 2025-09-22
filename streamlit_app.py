@@ -290,7 +290,7 @@ def tts_speak_line(text: str, voice_label: str) -> Tuple[str, Optional[bytes]]:
             if "지민" in voice_label:  audio = _pitch_shift_mp3(audio, +2.5)
             elif "소연" in voice_label: audio = _pitch_shift_mp3(audio, +4.0)
             elif "하은" in voice_label: audio = _pitch_shift_mp3(audio, +2.5)
-            elif "민지" in voice_label: audio = _pitch_shift_mp3(audio, +7.8)
+            elif "민지" in voice_label: audio = _pitch_shift_mp3(audio, +10.8)
             else: audio = _pitch_shift_mp3(audio, +2.0)
         elif "남성" in voice_label:
             if "10대" in voice_label: audio = _pitch_shift_mp3(audio, -1.0)
