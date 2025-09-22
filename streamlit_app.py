@@ -908,7 +908,7 @@ def page_stage_kits():
 
 # ───────── 페이지 5: AI 대본 연습 ────────────────────────────────
 def page_rehearsal_partner():
-    st.header("🎙️ 5) AI 대본 연습 — 줄 단위 STT(REST, 한 번 클릭→자동 분석)")
+    st.header("🎙️ 5) AI 대본 연습 — 줄 단위(한 번 클릭→자동 분석)")
 
     script = st.session_state.get("script_final") or st.session_state.get("script_balanced") or st.session_state.get("script_raw","")
     if not script:
