@@ -293,9 +293,9 @@ def tts_speak_line(text: str, voice_label: str) -> Tuple[str, Optional[bytes]]:
             elif "민지" in voice_label: audio = _pitch_shift_mp3(audio, +2.8)
             else: audio = _pitch_shift_mp3(audio, +2.0)
         elif "남성" in voice_label:
-            if "10대" in voice_label: audio = _pitch_shift_mp3(audio, +1.0)
+            if "10대" in voice_label: audio = _pitch_shift_mp3(audio, -1.0)
             elif "20대" in voice_label: audio = _pitch_shift_mp3(audio, -0.5)
-            elif "30대" in voice_label: audio = _pitch_shift_mp3(audio, -1.0)
+            elif "30대" in voice_label: audio = _pitch_shift_mp3(audio, +1.0)
         return speak_text, audio
     except Exception as e:
         st.error(f"TTS 오류: {e}")
