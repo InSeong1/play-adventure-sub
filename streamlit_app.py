@@ -838,7 +838,7 @@ def _prune_with_deletions_only(client, original_script: str, roles: List[str], t
 
 # ───────── 페이지 3: 대사 수 조절하기 ───────────────────────────────────
 def page_role_balancer():
-    st.header("⚖️ 3) 대사 수 조절하기 (자동: 감소→삭제, 증가→추가)")
+    st.header("⚖️ 3) 대사 수 조절하기")
     script = (st.session_state.get("current_script") 
               or st.session_state.get("script_balanced") 
               or st.session_state.get("script_final") 
@@ -859,7 +859,7 @@ def page_role_balancer():
         for r in roles:
             st.write(f"**{r}**: {counts.get(r,0)}줄")
     with col2:
-        st.subheader("🎯 목표 대사 수 (감소/증가 모두 허용)")
+        st.subheader("🎯 목표 대사 수")
         targets: Dict[str,int] = {}
         for r in roles:
             targets[r] = st.number_input(f"{r} 목표", min_value=0, value=counts[r], step=1, key=f"tgt_{r}")
