@@ -245,8 +245,8 @@ VOICE_KR_LABELS_SAFE = [
     "현우 (남성, 활기차고 밝은 목소리)", 
     "지호 (남성, 차분하고 신뢰감 있는 목소리)",
     "지민 (여성, 부드럽고 친절한 목소리)",
-    "소연 (여성, 귀엽고 명랑한 목소리)",
-    "하은 (여성, 차분하고 우아한 목소리)",
+    "소연 (여성, 차분하고 우아한 목소리)",
+    "하은 (여성, 귀엽고 명랑한 목소리)",
     "민지 (여성, 밝고 경쾌한 목소리)"
 ]
 
@@ -255,8 +255,8 @@ VOICE_MAP_SAFE = {
     "현우 (남성, 활기차고 밝은 목소리)": "verse", 
     "지호 (남성, 차분하고 신뢰감 있는 목소리)": "onyx",
     "지민 (여성, 부드럽고 친절한 목소리)": "nova",
-    "소연 (여성, 귀엽고 명랑한 목소리)": "shimmer",
-    "하은 (여성, 차분하고 우아한 목소리)": "coral",
+    "소연 (여성, 차분하고 우아한 목소리)": "shimmer",
+    "하은 (여성, 귀엽고 명랑한 목소리)": "coral",
     "민지 (여성, 밝고 경쾌한 목소리)": "echo"
 }
 
@@ -290,7 +290,7 @@ def tts_speak_line(text: str, voice_label: str) -> Tuple[str, Optional[bytes]]:
             if "지민" in voice_label:  audio = _pitch_shift_mp3(audio, +2.5)
             elif "소연" in voice_label: audio = _pitch_shift_mp3(audio, +4.0)
             elif "하은" in voice_label: audio = _pitch_shift_mp3(audio, +2.5)
-            elif "민지" in voice_label: audio = _pitch_shift_mp3(audio, +3.8)
+            elif "민지" in voice_label: audio = _pitch_shift_mp3(audio, +5.8)
             else: audio = _pitch_shift_mp3(audio, +2.0)
         elif "남성" in voice_label:
             if "10대" in voice_label: audio = _pitch_shift_mp3(audio, -1.0)
