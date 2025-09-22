@@ -606,28 +606,33 @@ def _count_lines_by_role(text: str, roles: List[str]) -> Dict[str, int]:
 # (B) 목표 줄 수를 정확히 맞출 때까지 생성→검증→재시도 루프 — 새 함수 추가
 
 def _rebalance_with_hard_targets(
-    client, original_script: str, roles: List[str], targets: Dict[str, int], max_tries: int = 4
+client, original_script: str, roles: List[str], targets: Dict[str, int], max_tries: int = 4
 ) -> str:
-    """역할/목표 줄수를 '정확히' 맞출 때까지 AI에 재시도 요청."""
-    role_list = ", ".join(roles)
-    target_lines = "\n".join([f"- {r}: {targets[r]}줄" for r in roles])
+"""역할/목표 줄수를 '정확히' 맞출 때까지 AI에 재시도 요청."""
+role_list = ", ".join(roles)
+target_lines = "\n".join([f"- {r}: {targets[r]}줄" for r in roles])
 
-    sys = (
-        "당신은 초등 연극 대본 편집자입니다. 사용자가 정한 '역할별 목표 대사 수'를 "
-        "정확히 맞추는 것이 최우선 과제입니다. 자연스러운 연결을 유지하되, "
-        "목표 줄 수와 다르면 반드시 추가/삭제/합치기/쪼개기를 통해 정확히 맞추세요. "
-        "지문은 괄호 ( ) 만 사용하며 대사 수에는 포함하지 않습니다. "
-        "등장인물은 제공된 목록만 사용하세요."
-    )
 
-    base_prompt = f"""
+sys = (
+"당신은 초등 연극 대본 편집자입니다. 사용자가 정한 '역할별 목표 대사 수'를 "
+"정확히 맞추는 것이 최우선 과제입니다. 자연스러운 연결을 유지하되, "
+"목표 줄 수와 다르면 반드시 추가/삭제/합치기/쪼개기를 통해 정확히 맞추세요. "
+"지문은 괄호 ( ) 만 사용하며 대사 수에는 포함하지 않습니다. "
+"등장인물은 제공된 목록만 사용하세요."
+)
+
+
+base_prompt = f"""
 원본 대본:
 {original_script}
 
+
 등장인물: {role_list}
+
 
 목표 대사 수:
 {target_lines}
+
 
 요구사항:
 1) 각 인물의 대사 수를 목표에 '정확히' 맞출 것
@@ -636,8 +641,8 @@ def _rebalance_with_hard_targets(
 4) 기-승-전-결 흐름은 간결히 유지, 불필요 반복은 정리
 5) 출력은 '대본 텍스트만' 주세요 (설명/표/머릿말 금지)
 6) 대본의 전체 맥락을 충분히 파악하여 인물 간 대사가 자연스럽게 주고받아지도록, 불필요한 반복은 정리하고 연결부(받아치기·반응·전환)를 적절히 보강할 것
+7) 원래 대본의 기-승-전-결 구조를 존중하며, 해당 흐름에 맞게 수정·보강할 것
 """
-
     # 최초 시도
     msg = [{"role": "system", "content": sys}, {"role": "user", "content": base_prompt}]
     last_script = None
@@ -900,33 +905,39 @@ def page_stage_kits():
 # ───────── MAIN ────────────────────────────────────────────────────
 
 def main():
-    st.set_page_config("연극용의 둥지", "🐉", layout="wide")
-    st.markdown(PASTEL_CSS, unsafe_allow_html=True)
-    st.title("🐉 연극용의 둥지 — 연극 용을 성장시켜요!")
-    st.subheader("연극 용과 함께 완성도 있는 연극을 완성하고 연습해 보자!")
+st.set_page_config("연극용의 둥지", "🐉", layout="wide")
+st.markdown(PASTEL_CSS, unsafe_allow_html=True)
+st.title("🐉 연극용의 둥지 — 연극 용을 성장시켜요!")
+st.subheader("연극 용과 함께 완성도 있는 연극을 완성하고 연습해 보자!")
 
-    if "current_page" not in st.session_state:
-        st.session_state["current_page"]="📥 1) 대본 등록"
 
-    pages = {
-        "📥 1) 대본 등록": page_script_input,
-        "🛠️ 2) 대본 피드백 & 완성본": page_feedback_script,
-        "⚖️ 3) 대사 수 조절하기": page_role_balancer,
-        "🎭 4) 소품·무대·의상": page_stage_kits,
-        # "🎙️ 5) AI 대본 연습": page_rehearsal_partner  # ← 원본과 동일하게 등록
-    }
+if "current_page" not in st.session_state:
+st.session_state["current_page"]="📥 1) 대본 등록"
 
-    all_pages = list(pages.keys())
-    sel = st.sidebar.radio("메뉴", all_pages, 
-                          index=all_pages.index(st.session_state["current_page"]), 
-                          key="nav_radio")
-    st.session_state["current_page"]=sel
 
-    if st.sidebar.button("전체 초기화", key="btn_reset_all"):
-        st.session_state.clear()
-        if hasattr(st, "rerun"): st.rerun()
+pages = {
+"📥 1) 대본 등록": page_script_input,
+"🛠️ 2) 대본 피드백 & 완성본": page_feedback_script,
+"⚖️ 3) 대사 수 조절하기": page_role_balancer,
+"🎭 4) 소품·무대·의상": page_stage_kits,
+"🎙️ 5) AI 대본 연습": page_rehearsal_partner # ✅ 다시 보이도록 복원
+}
 
-    pages[sel]()
+
+all_pages = list(pages.keys())
+sel = st.sidebar.radio("메뉴", all_pages,
+index=all_pages.index(st.session_state["current_page"]),
+key="nav_radio")
+st.session_state["current_page"]=sel
+
+
+if st.sidebar.button("전체 초기화", key="btn_reset_all"):
+st.session_state.clear()
+if hasattr(st, "rerun"): st.rerun()
+
+
+pages[sel]()
+
 
 if __name__=="__main__":
-    main()
+main()
